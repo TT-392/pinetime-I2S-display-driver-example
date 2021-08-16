@@ -34,14 +34,15 @@ SRC_FILES += \
   $(PROJ_DIR)/modules/settings.c \
   $(PROJ_DIR)/modules/watchface.c \
   $(PROJ_DIR)/modules/statusbar.c \
-  $(PROJ_DIR)/modules/steamLocomotive.c \
   $(PROJ_DIR)/drivers/pinetime_display_driver/display.c \
   $(PROJ_DIR)/drivers/touch.c \
+  $(PROJ_DIR)/drivers/audio.c \
   $(PROJ_DIR)/drivers/i2c.c \
   $(PROJ_DIR)/core.c \
   $(PROJ_DIR)/main.c \
 
 
+  #$(PROJ_DIR)/modules/steamLocomotive.c \
 # Include folders common to all targets
 INC_FOLDERS += \
   $(SDK_ROOT)/components/nfc/ndef/generic/message \
