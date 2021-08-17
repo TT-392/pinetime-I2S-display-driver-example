@@ -371,11 +371,11 @@ void drawMono(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor,
 
     while (pixel != area) {
         if ((frame[pixel / 8] >> pixel % 8) & 1) {
-            display_send(1, 0xff);
-            display_send(1, 0xff);
+            display_send(1, posColor >> 8);
+            display_send(1, posColor & 0xff);
         } else {
-            display_send(1, 0x00);
-            display_send(1, 0x00);
+            display_send(1, negColor >> 8);
+            display_send(1, negColor & 0xff);
         }
         
         pixel++;
