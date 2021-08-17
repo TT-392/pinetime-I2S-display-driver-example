@@ -42,7 +42,7 @@ int main(void) {
         if (midi[i] == -1){}
             //audio_set_freq(0, 0);
         else {
-            audio_set_freq(440*pow(2, (double)(midi[i] - 69 - 12*3)/12), 1);
+            audio_set_freq(440*pow(2, (double)(midi[i] - 69 - 12*3)/12), 0.7);
         }
         nrf_delay_ms(100);
     }
