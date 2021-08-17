@@ -183,7 +183,7 @@ void display_init() {
     display_send (0, CMD_SLPOUT);
 
     display_send (0, CMD_COLMOD);
-    display_send (1, COLOR_12bit);
+    display_send (1, COLOR_16bit);
 
     display_send (0, CMD_MADCTL); 
     display_send (1, 0x00);
@@ -374,9 +374,10 @@ void drawBitmap (uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bi
 void drawMono(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor, uint16_t negColor) {
     ppi_set();
 
-    int maxLength = 255; 
+    int maxLength = 254;
     uint8_t byteArray0[maxLength];
     uint8_t byteArray1[maxLength];
+
 
     /* setup display for writing */
     byteArray0[0] = CMD_CASET;
@@ -398,97 +399,62 @@ void drawMono(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor,
     byteArray0[10] = CMD_RAMWR;
     /**/
 
+
     int area = (x2-x1+1)*(y2-y1+1);
 
+
     int byte = 11;
-    int bitsppixel = 12;
-    int pixel = -1;
-    int bitsToWrite = 0;
+    int bytesToSend = byte + area*2;
+    int packet = 0;
 
-    int packetNr = 0;
+    uint8_t* byteArray;
 
-    uint8_t* byteArray = byteArray0;
+    for (int pixel = 0; pixel < area; pixel++) {
+        // use 2 arrays so that dma can keep sending while more data is being processed.
+        if (packet % 2 == 0) 
+            byteArray = byteArray0;
+        else 
+            byteArray = byteArray1;
 
-    int bytesMod3 = 0;
-
-    bool color;
-
-    // 746
-    bool stop = 0;
-    //semihost_print("drawmono\n", 9);
-    while (!stop) {
-        uint8_t smallByte = 0;
-        if (bytesMod3 == 0) {
-            pixel++;
-            if (pixel == area)
-                break;
-
-            color = (frame[pixel >> 3] >> (pixel % 8)) & 1;
-            smallByte = color * 3;
-            bytesMod3 = 1;
-        } else if (bytesMod3 == 1) {
-            smallByte = color * 2;
-
-            pixel++;
-
-            if (pixel == area) {
-                stop = 1;
-            } else {
-                color = (frame[pixel >> 3] >> (pixel % 8)) & 1;
-                smallByte |= color;
-            }
-            bytesMod3 = 2;
-        } else if (bytesMod3 == 2) {
-            smallByte = color * 3;
-            bytesMod3 = 0;
+        // write a pixel from the mono bitmap to the color bitmap(byteArray)
+        uint16_t color = 0;
+        if ((frame[pixel / 8] >> (pixel % 8)) & 1) {
+            color = posColor;
+        } else {
+            color = negColor;
         }
-
-        switch (smallByte) {
-            case 0:
-                byteArray[byte] = 0xff;
-                break;
-            case 1:
-                byteArray[byte] = 0xf0;
-                break;
-            case 2:
-                byteArray[byte] = 0x0f;
-                break;
-            case 3:
-                byteArray[byte] = 0x00;
-                break;
-        }
+        byteArray[byte] = color >> 8;
         byte++;
-
-        if (byte == maxLength) {
-            //semihost_print("packet\n", 7);
-            if (packetNr > 0) {
+        byteArray[byte] = color;
+        byte++;
+        
+        // if first array is full
+        if (byte >= maxLength - 1) {
+            if (packet > 0) {
                 display_sendbuffer_finish();
-                ppi_clr(); 
+                ppi_clr(); // turn off cmd pin for all following transfers
             }
 
             display_sendbuffer_noblock(byteArray, byte);
 
-            packetNr++;
-            if (packetNr % 2 == 0)
-                byteArray = byteArray0;
-            else
-                byteArray = byteArray1;
-
             byte = 0;
+            packet++;
         }
     }
-    if (byte != 0) { 
-        //semihost_print("Packet\n", 7);
-        if (packetNr > 0) {
+
+    if (byte != 0) { // if there is remaining data to be sent
+        if (packet > 0) {
             display_sendbuffer_finish();
-            ppi_clr(); 
+            ppi_clr(); // turn off cmd pin for all following transfers
         }
 
         display_sendbuffer_noblock(byteArray, byte);
     }
     display_sendbuffer_finish();
     ppi_clr();
+
 }
+
 
 void display_scroll(uint16_t TFA, uint16_t VSA, uint16_t BFA, uint16_t scroll_value) {
     // the following CC setup will cause byte 0, 5 and 10 
