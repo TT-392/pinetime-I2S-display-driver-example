@@ -3,13 +3,14 @@
 #include "icons.c"
 #include "main_menu.h"
 #include "settings.h"
+#include "breakout.h"
 
 static struct menu_item menu_items[13] = { // first element reserved for text
     {"clock",      2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
     {"sleep",      2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"SL",         2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, trainIcon,  }}},
     {"settings",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x528A, settings_circled,}}},
-    {"test",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
+    {"breakout",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, breakout,     }}},
     {"uwu",        2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"test",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"test",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
@@ -73,6 +74,11 @@ void menu_run() {
         if (selectedItem == 3) {
             core_stop_process(&main_menu);
             core_start_process(&settings);
+            return;
+        }
+        if (selectedItem == 4) {
+            core_stop_process(&main_menu);
+            core_start_process(&breakout_process);
             return;
         }
     }

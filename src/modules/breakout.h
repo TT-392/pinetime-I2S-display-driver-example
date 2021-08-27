@@ -1,10 +1,8 @@
+#pragma once
 #include <stdlib.h>
+#include "core.h"
 
-struct Ball {
-    uint8_t x;
-    uint8_t y;
-    int vx;
-    int vy;
-};
+void breakout_run();
+void breakout_init();
 
-void render_breakout (uint8_t bat, struct Ball* ball);
+extern struct process breakout_process;

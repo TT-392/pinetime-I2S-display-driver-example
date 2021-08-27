@@ -1,41 +1,21 @@
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include "display.h"
+#include "display_print.h"
+#include "touch.h"
+#include "nrf_delay.h"
+#include "breakout.h"
+#include "core.h"
 
-
-//display_backlight(255);
-//display_init();
-//
-//struct Ball ball;
-//ball.x = 120;
-//ball.y = 120;
-//ball.vx = -1;
-//ball.vy = 1;
-//
-//
-//
-//touch_init();
-//struct touchPoints touchPoint;
-//uint8_t touch_data[8];
-//
-//
-//while (1) {
-//    static int batLocation = 0;
-//    touch_refresh(&touchPoint, touch_data);
-//
-//    if (touchPoint.event)
-//        if (touchPoint.touchX != 0)
-//            if (touchPoint.touchX > 120)
-//                batLocation += 4;
-//            else 
-//                batLocation -= 4;
-//    if (batLocation > 239) batLocation = 239;
-//    if (batLocation < 0) batLocation = 0;
-//
-//    render_breakout(batLocation , &ball);
-//
-//    wdt_feed();
-//    nrf_delay_ms(10);
-//};
-
+struct process breakout_process = {
+    .runExists = 1,
+    .run = &breakout_run,
+    .startExists = 1,
+    .start = &breakout_init,
+    .stopExists = 0,
+    .event = &event_always,
+};
 
 
 struct Ball {
@@ -311,4 +291,37 @@ void render_breakout (uint8_t bat, struct Ball* ball) {
         drawSquare(ball->x, ball->y, ball->x+ballW-1, ball->y+ballH-1, 0xffff);
     else 
         drawSquare(ball->x, ball->y, ball->x+ballW-1, ball->y+ballH-1, 0x0000);
-};
+}
+
+struct Ball ball;
+struct touchPoints touchPoint;
+int batLocation;
+
+void breakout_init() {
+    ball.x = 120;
+    ball.y = 120;
+    ball.vx = -1;
+    ball.vy = 1;
+
+    touch_init();
+
+    batLocation = 0;
+}
+
+void breakout_run() {
+    touch_refresh(&touchPoint);
+
+    if (touchPoint.event)
+        if (touchPoint.touchX != 0)
+            if (touchPoint.touchX > 120)
+                batLocation += 4;
+            else 
+                batLocation -= 4;
+
+    if (batLocation > 239) batLocation = 239;
+    if (batLocation < 0) batLocation = 0;
+
+    render_breakout(batLocation , &ball);
+
+    nrf_delay_ms(15);
+}

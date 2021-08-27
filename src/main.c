@@ -38,12 +38,6 @@ int main(void) {
     drawMono(0, 0, 239, 319, frame, 0x0000, 0xffff);
 
 
-    nrf_gpio_cfg_input(19, NRF_GPIO_PIN_NOPULL);
-    display_backlight(255);
-
-
-    uart_init();
-
     int x = 0;
 
 
@@ -56,7 +50,6 @@ int main(void) {
     nrf_gpio_cfg_input(13, NRF_GPIO_PIN_PULLDOWN);
 
 
-    struct touchPoints touchPoint = {0};
     bool backlight = 0;
 
     //statusBar_refresh();
@@ -66,7 +59,6 @@ int main(void) {
     core_start_process(&statusbar);
 
     while(osRunning) {
-        partialMode(0,90);
         core_run();
         wdt_feed();
     }

@@ -29,6 +29,7 @@ SRC_FILES += \
   $(PROJ_DIR)/utils/date.c \
   $(PROJ_DIR)/utils/geometry.c \
   $(PROJ_DIR)/modules/sleep.c \
+  $(PROJ_DIR)/modules/breakout.c \
   $(PROJ_DIR)/modules/scrollMenu.c \
   $(PROJ_DIR)/modules/main_menu.c \
   $(PROJ_DIR)/modules/settings.c \
