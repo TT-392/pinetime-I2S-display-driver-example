@@ -2,6 +2,17 @@
 
 #include "nrf.h"
 
+// concept function
+// options byte:
+//   no draw
+//   draw
+//   draw alpha
+// return:
+//   mono bmp on no draw
+// foreground, background color
+// x y
+// scaler
+
 void drawChar (int x, int y, char character, uint16_t color_text, uint16_t color_bg, _Bool Alpha);
 
 

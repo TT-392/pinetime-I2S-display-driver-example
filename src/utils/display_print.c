@@ -4,6 +4,44 @@
 #include "display_print.h"
 #include <math.h>
 
+static void putBit (uint8_t *byteArray, bool bit, int index) {
+    if (bit) {
+        byteArray[index / 8] |= 1 << index % 8;
+    } else {
+        byteArray[index / 8] &= ~(1 << index % 8);
+    }
+}
+
+static bool getBit (const uint16_t *byteArray, int index) {
+    return (byteArray[index / 16] >> 16 - index % 16) & 1;
+}
+
+void drawCharResized (int x, int y, char character, uint16_t color_text, uint16_t color_bg, int multiplier) {
+    uint8_t frame[(6*16 / 8) * multiplier * multiplier];
+
+    int bmpIndex = 0;
+    int charIndex = 0;
+
+    for (int charY = 0; charY < 16 * multiplier; charY++) {
+        for (int charX = 0; charX < 6 * multiplier; charX++) {
+            putBit(frame, getBit(&funfont_6x16r[(character - 32) * 6], (charX / multiplier)*16 + (charY / multiplier)), bmpIndex++);
+        }
+    }
+
+    drawMono(x, y, x+5 + 6*(multiplier-1), y+15 + 16*(multiplier-1), frame, color_text, color_bg);
+}
+
+void drawStringResized (int x, int y, char* text, uint16_t color_text, uint16_t color_bg, int multiplier) {
+    int i = 0;
+
+    while (text[i] != '\0') {
+        if ((x + i*8*multiplier) < 240 && (x + i*8*multiplier) >= 0) {
+            drawCharResized (x + multiplier + i*8*multiplier, y, text[i], color_text, color_bg, multiplier);
+        }
+        i++;
+    }
+}
+
 void drawChar (int x, int y, char character, uint16_t color_text, uint16_t color_bg, _Bool Alpha) {
     uint8_t frame[(8*16 / 8)];
 
