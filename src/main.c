@@ -5,6 +5,7 @@
 #include "wdt.h"
 #include "display.h"
 #include "display_defines.h"
+#include "display_print.h"
 #include "battery.h"
 #include "frame.c"
 #include "breakout.h"
@@ -24,10 +25,13 @@
 #include "audio.h"
 #include "bad_apple_midi.h"
 #include <math.h>
+#include "date_adjust.h"
+#include "clock_pine.h"
 
 static bool toggle = 1;
 
 int main(void) {
+    clock_setup();
     battery_init();
     display_init();
     date_init();

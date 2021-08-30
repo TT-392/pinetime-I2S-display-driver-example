@@ -3,8 +3,6 @@
 #include "clock_pine.h"
 
 void date_init() {
-    clock_setup();
-
 }
 
 void itos (int integer, _Bool removeZeros, char* String, int strLength)  {
@@ -20,10 +18,8 @@ void itos (int integer, _Bool removeZeros, char* String, int strLength)  {
 
 // kinda shitty implementation of the unix command, can only return a string of up to 100 characters and will use at least 100 bytes of ram, missing a bunch of stuff
 void drawDate (int x, int y, char* input) {
-    long long int time = clock_time();
-    int second, minute, hour, day, month, year;
-
-    epochtotime(time, &second, &minute, &hour, &day, &month, &year);
+    long long int epochTime = clock_time();
+    datetime time = epochtotime(epochTime);
 
     char tempString[100];
 
@@ -53,31 +49,31 @@ void drawDate (int x, int y, char* input) {
                     tempString[newStrLeng++] = String[3];
                 } else if (input[i+1] == 'm') { // month
                     char String[3];
-                    itos(month, 0, String, 3);
+                    itos(time.month, 0, String, 3);
 
                     tempString[newStrLeng++] = String[0];
                     tempString[newStrLeng++] = String[1];
                 } else if (input[i+1] == 'd') { // day
                     char String[3];
-                    itos(day, 0, String, 3);
+                    itos(time.day, 0, String, 3);
 
                     tempString[newStrLeng++] = String[0];
                     tempString[newStrLeng++] = String[1];
                 } else if (input[i+1] == 'H') { // hour
                     char String[3];
-                    itos(hour, 0, String, 3);
+                    itos(time.hour, 0, String, 3);
 
                     tempString[newStrLeng++] = String[0];
                     tempString[newStrLeng++] = String[1];
                 } else if (input[i+1] == 'M') { // minute
                     char String[3];
-                    itos(minute, 0, String, 3);
+                    itos(time.minute, 0, String, 3);
 
                     tempString[newStrLeng++] = String[0];
                     tempString[newStrLeng++] = String[1];
                 } else if (input[i+1] == 'S') { // second
                     char String[3];
-                    itos(second, 0, String, 3);
+                    itos(time.second, 0, String, 3);
 
                     tempString[newStrLeng++] = String[0];
                     tempString[newStrLeng++] = String[1];

@@ -1,12 +1,4 @@
-typedef struct {
-    int second;
-    int minute;
-    int hour;
-    int day;
-    int month;
-    int year;
-} datetime;
-
+#include "calctime.h"
 int months[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
 
 _Bool leapyear(int y){

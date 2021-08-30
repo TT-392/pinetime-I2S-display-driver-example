@@ -12,7 +12,7 @@ struct process sl = {
     .startExists = 1,
     .start = &sl_init,
     .stopExists = 1,
-    .stop = &sl_init,
+    .stop = &sl_init, // ???????
     .event = &sl_nextFrameReady
 };
 

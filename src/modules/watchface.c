@@ -322,7 +322,6 @@ int draw14SegmentNumber(int xSegment, int ySegment, uint16_t character, int colo
 static uint64_t lastTime;
 void digitalWatch_init() {
     drawSquare(0, 0, 239, 239, 0x0000);
-    clock_setup();
     lastTime = cpuTime();
 }
 
@@ -363,10 +362,10 @@ void digitalWatch_run() {
 
 
 
-        long long int time = clock_time();
-        int second, minute, hour, day, month, year;
+        long long int epochTime = clock_time();
+        datetime time;
 
-        epochtotime(time, &second, &minute, &hour, &day, &month, &year);
+        time = epochtotime(epochTime);
 
         //char printvalue[11] = "0000000000\n";
         //int division = 1;
@@ -377,11 +376,11 @@ void digitalWatch_run() {
 
         //semihost_print(printvalue, 11);
 
-        draw7SegmentNumber(32  - 15, 100, (hour / 10) % 10, colorOn, colorOff);
-        draw7SegmentNumber(32  - 15 + 50, 100, hour % 10, colorOn, colorOff);
+        draw7SegmentNumber(32  - 15, 100, (time.hour / 10) % 10, colorOn, colorOff);
+        draw7SegmentNumber(32  - 15 + 50, 100, time.hour % 10, colorOn, colorOff);
 
-        draw7SegmentNumber(120 + 15, 100, (minute / 10) % 10, colorOn, colorOff);
-        draw7SegmentNumber(120 + 15 + 50, 100, minute % 10, colorOn, colorOff);
+        draw7SegmentNumber(120 + 15, 100, (time.minute / 10) % 10, colorOn, colorOff);
+        draw7SegmentNumber(120 + 15 + 50, 100, time.minute % 10, colorOn, colorOff);
 
         drawCircle(120, 100 + 14, 5, i % 2 ? colorOff : colorOn);
         drawCircle(120, 100 - 14, 5, i % 2 ? colorOff : colorOn);
@@ -392,17 +391,17 @@ void digitalWatch_run() {
         drawString(187 + 8*2, 140, "PM", colorOff, 0x0000);
 
         int j = 0;
-        draw14SegmentNumber(18 + j*30, 185, numbers[(day / 10) %10], colorOn, colorOff);
+        draw14SegmentNumber(18 + j*30, 185, numbers[(time.day / 10) %10], colorOn, colorOff);
         j++;
-        draw14SegmentNumber(18 + j*30, 185, numbers[day % 10], colorOn, colorOff);
+        draw14SegmentNumber(18 + j*30, 185, numbers[time.day % 10], colorOn, colorOff);
         j++;
         draw14SegmentNumber(18 + j*30, 185, 0x40, colorOn, colorOff);
         j++;
-        draw14SegmentNumber(18 + j*30, 185, letters[months[month - 1][0] - 97], colorOn, colorOff);
+        draw14SegmentNumber(18 + j*30, 185, letters[months[time.month - 1][0] - 97], colorOn, colorOff);
         j++;
-        draw14SegmentNumber(18 + j*30, 185, letters[months[month - 1][1] - 97], colorOn, colorOff);
+        draw14SegmentNumber(18 + j*30, 185, letters[months[time.month - 1][1] - 97], colorOn, colorOff);
         j++;
-        draw14SegmentNumber(18 + j*30, 185, letters[months[month - 1][2] - 97], colorOn, colorOff);
+        draw14SegmentNumber(18 + j*30, 185, letters[months[time.month - 1][2] - 97], colorOn, colorOff);
         j++;
         draw14SegmentNumber(18 + j*30, 185, 0, colorOn, colorOff);
 

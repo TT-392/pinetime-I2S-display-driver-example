@@ -64,6 +64,11 @@ void RTC0_IRQHandler(void)
 	get linux time in seconds<<16
 	
 */
+
+void set_time(long long int time) {
+    currentTime = time;
+}
+
 long long int clock_time(void)
 {
 	//volatile int t;

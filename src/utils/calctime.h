@@ -1,8 +1,17 @@
 #pragma once
 
-unsigned long timetoepoch(int year, int month, int day, int hour, int minute, int second);
+typedef struct {
+    int second;
+    int minute;
+    int hour;
+    int day;
+    int month;
+    int year;
+} datetime;
 
-void epochtotime(unsigned long timeSinceEpoch, int* second, int* minute, int* hour, int* day, int* month, int* year);
+unsigned long timetoepoch(datetime time);
+
+datetime epochtotime(unsigned long timeSinceEpoch);
 
 unsigned long addTime(unsigned int epochTime, datetime timedelta);
 

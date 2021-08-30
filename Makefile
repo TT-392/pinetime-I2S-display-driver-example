@@ -36,6 +36,7 @@ SRC_FILES += \
   $(PROJ_DIR)/modules/watchface.c \
   $(PROJ_DIR)/modules/statusbar.c \
   $(PROJ_DIR)/modules/steamLocomotive.c \
+  $(PROJ_DIR)/modules/date_adjust.c \
   $(PROJ_DIR)/drivers/pinetime_display_driver/display.c \
   $(PROJ_DIR)/drivers/touch.c \
   $(PROJ_DIR)/drivers/audio.c \

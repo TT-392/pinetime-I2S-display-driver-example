@@ -13,6 +13,12 @@
 // x y
 // scaler
 
+void drawCharResized (int x, int y, char character, uint16_t color_text, uint16_t color_bg, int multiplier);
+
+
+void drawStringResized (int x, int y, char* text, uint16_t color_text, uint16_t color_bg, int multiplier);
+
+
 void drawChar (int x, int y, char character, uint16_t color_text, uint16_t color_bg, _Bool Alpha);
 
 

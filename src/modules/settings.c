@@ -2,6 +2,7 @@
 #include "core.h"
 #include "icons.c"
 #include "settings.h"
+#include "date_adjust.h"
 
 static struct menu_item menu_items[13] = { // first element reserved for text
     {"setting 1",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
@@ -60,7 +61,7 @@ void settings_run() {
         }
         if (selectedItem == 0) {
             core_stop_process(&settings);
-            core_start_process(&watchface);
+            core_start_process(&date_adjust);
             return;
         }
         if (selectedItem == 1) {
