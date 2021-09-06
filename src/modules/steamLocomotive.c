@@ -1,19 +1,22 @@
 #include "nrf_clock.h"
 #include "nrf_timer.h"
-#include "core.h"
 #include "main_menu.h"
 #include "display_print.h"
 #include "steamLocomotive.h"
 #include "display.h"
+#include "system.h"
 
-struct process sl = {
-    .runExists = 1,
-    .run = &sl_run,
-    .startExists = 1,
-    .start = &sl_init,
-    .stopExists = 1,
-    .stop = &sl_init, // ???????
-    .event = &sl_nextFrameReady
+void sl_init();
+void sl_stop();
+void sl_run();
+
+static dependency dependencies[] = {{&display, running}};
+static task tasks[] = {{&sl_init, start, 1, dependencies}, {&sl_run, run, 0}, {&sl_stop, stop, 0}};
+
+process sl = {
+    .taskCnt = 3,
+    .tasks = tasks,
+    .trigger = &sl_nextFrameReady
 };
 
 volatile bool sl_nextFrameReady = 1;
@@ -147,7 +150,7 @@ void sl_run() {
     time++;
     if (time >= (30+22)) {
         time = 0;
-        core_stop_process(&sl);
-        core_start_process(&main_menu);
+        //core_stop_process(&sl);
+        //core_start_process(&main_menu);
     } 
 }

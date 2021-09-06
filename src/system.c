@@ -5,6 +5,7 @@
 
 static process **knownProcesses;
 static int knownProcessCount = 0;
+volatile bool event_always;
 
 static void add_to_known_processes (process *Process) {
     for (int i = 0; i < knownProcessCount; i++) {
@@ -97,8 +98,12 @@ bool process_has_task (taskType type, process *Process) {
 
 void system_run () {
     for (int i = 0; i < knownProcessCount; i++) {
-        if (knownProcesses[i]->status == running && process_has_task(run, knownProcesses[i])) {
+        event_always = 1;
+
+        if (knownProcesses[i]->status == running && process_has_task(run, knownProcesses[i]) && *(knownProcesses[i]->trigger)) {
             system_task(run, knownProcesses[i]);
+
+            *(knownProcesses[i]->trigger) = 0;
         }
     }
 }

@@ -27,6 +27,7 @@
 #include "clock_pine.h"
 #include "breakout.h"
 #include "system.h"
+#include "steamLocomotive.h"
 
 static bool toggle = 1;
 
@@ -58,6 +59,7 @@ int main(void) {
 
     //touch_init();
     system_task(start, &breakout);
+    system_task(start, &sl);
 
     display_backlight(255);
 

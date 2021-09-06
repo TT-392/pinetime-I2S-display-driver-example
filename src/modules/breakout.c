@@ -16,7 +16,8 @@ static task tasks[] = {{&breakout_init, start, 2, dependencies}, {&breakout_run,
 
 process breakout = {
     .taskCnt = 2,
-    .tasks = tasks
+    .tasks = tasks,
+    .trigger = &event_always
 };
 
 
@@ -320,8 +321,9 @@ void breakout_run() {
 
     if (batLocation > 239) batLocation = 239;
     if (batLocation < 0) batLocation = 0;
+    batLocation = ball.x;
 
     render_breakout(batLocation , &ball);
 
-    nrf_delay_ms(15);
+    nrf_delay_ms(5);
 }

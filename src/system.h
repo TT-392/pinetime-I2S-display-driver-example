@@ -36,5 +36,7 @@ typedef struct processStruct {
     processStatus status; // Don't touch this, used by system functions
 } process;
 
+extern volatile bool event_always;
+
 void system_task (taskType type, process *Process);
 void system_run ();
