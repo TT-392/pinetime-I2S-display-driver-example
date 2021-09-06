@@ -1,4 +1,3 @@
-//#include "./external/infinitime/i2c_pine.h"
 #include "nrf.h"
 #include "nrf_delay.h"
 #include "nrf_gpio.h"
@@ -8,6 +7,19 @@
 #include "i2c.h"
 #include <math.h>
 #include <stdlib.h>
+
+void touch_init();
+
+void touch_wake();
+void touch_sleep();
+
+static task tasks[] = {{&touch_init, start, 0}, {&touch_wake, wake, 0}, {&touch_sleep, sleep, 0}};
+
+process touch = {
+    .taskCnt = 3,
+    .tasks = tasks
+};
+
 
 
 #define TOUCH_I2C_DEVICE (0x15)
@@ -118,9 +130,7 @@ struct touchPoints {
     int errorCount;
 };
 
-
-
-int touch_init() { 
+void touch_init() { 
     // send a reset
     nrf_gpio_cfg_output(10);
     nrf_gpio_pin_write(10,1);
@@ -129,7 +139,6 @@ int touch_init() {
     nrf_delay_ms(5);
     nrf_gpio_pin_write(10,1);
     nrf_delay_ms(50);
-
 
     // create GPIOTE event for the int pin
     NRF_GPIOTE->CONFIG[2] = GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos |
@@ -144,9 +153,6 @@ int touch_init() {
 
     i2c_setup(touch_data);
     subscribeAndInitI2CInterrupt(i2cInterruptHandler);
-
-
-    return 0;
 }
 
 void touch_sleep() {
@@ -159,11 +165,6 @@ void touch_wake() {
 
 
 int touch_refresh(struct touchPoints* touchPoint) {
-    static bool once = 1;
-    if (once) {
-        touch_init();
-        once = 0;
-    }
 
     //semihost_print("reading touch\n", 14);
 

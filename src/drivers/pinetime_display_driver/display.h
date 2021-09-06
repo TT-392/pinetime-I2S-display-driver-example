@@ -1,6 +1,7 @@
 #pragma once
 #include "stdint.h"
 #include "stdbool.h"
+#include "system.h"
 
 /*
  * Function to init the display, 
@@ -42,4 +43,6 @@ void flip (bool flipped);
 
 void display_pause();
 void display_resume();
+
+extern process display;
 

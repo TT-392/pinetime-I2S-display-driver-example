@@ -1,8 +1,4 @@
 #pragma once
-#include <stdlib.h>
-#include "core.h"
+#include "system.h"
 
-void breakout_run();
-void breakout_init();
-
-extern struct process breakout_process;
+extern process breakout;

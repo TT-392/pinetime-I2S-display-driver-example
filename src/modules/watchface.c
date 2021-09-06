@@ -12,6 +12,7 @@
 #include "watchface.h"
 #include "main_menu.h"
 #include "battery.h"
+#include "sleep.h"
 
 struct process watchface = {
     .runExists = 1,
@@ -411,6 +412,14 @@ void digitalWatch_run() {
 
     struct touchPoints touchPoint;
     touch_refresh(&touchPoint);
+
+    if (touchPoint.tab != 0) {
+        touch_refresh(&touchPoint); // is this one needed?
+        sleep();
+        touch_refresh(&touchPoint);
+        display_backlight(255);
+    }
+
     if (touchPoint.gesture == 0x0C) {
         core_stop_process(&watchface);
         core_start_process(&main_menu);

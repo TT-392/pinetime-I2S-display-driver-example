@@ -4,6 +4,7 @@
 #include "display_defines.h"
 #include "display.h"
 #include "nrf_assert.h"
+#include "system.h"
 #include <string.h>
 
 #define ppi_set() NRF_PPI->CHENSET = 0xff; __disable_irq();// enable first 8 ppi channels
@@ -13,6 +14,15 @@
 #define COLOR_16bit 0x05
 #define COLOR_12bit 0x03
 static uint8_t colorMode = COLOR_16bit;
+
+void display_init();
+
+static task tasks[] = {{&display_init, start, 0}};
+
+process display = {
+    .taskCnt = 1,
+    .tasks = tasks
+};
 
 // placeholder for actual brightness control see https://forum.pine64.org/showthread.php?tid=9378, pwm is planned
 void display_backlight(char brightness) {

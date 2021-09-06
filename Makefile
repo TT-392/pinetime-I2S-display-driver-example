@@ -19,6 +19,7 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
+  $(PROJ_DIR)/external/timecake/clock_pine.c \
   $(PROJ_DIR)/utils/wdt.c \
   $(PROJ_DIR)/utils/semihost.c \
   $(PROJ_DIR)/utils/systick.c \
@@ -28,22 +29,24 @@ SRC_FILES += \
   $(PROJ_DIR)/utils/battery.c \
   $(PROJ_DIR)/utils/date.c \
   $(PROJ_DIR)/utils/geometry.c \
-  $(PROJ_DIR)/modules/sleep.c \
-  $(PROJ_DIR)/modules/breakout.c \
-  $(PROJ_DIR)/modules/scrollMenu.c \
-  $(PROJ_DIR)/modules/main_menu.c \
-  $(PROJ_DIR)/modules/settings.c \
-  $(PROJ_DIR)/modules/watchface.c \
-  $(PROJ_DIR)/modules/statusbar.c \
-  $(PROJ_DIR)/modules/steamLocomotive.c \
-  $(PROJ_DIR)/modules/date_adjust.c \
   $(PROJ_DIR)/drivers/pinetime_display_driver/display.c \
   $(PROJ_DIR)/drivers/touch.c \
   $(PROJ_DIR)/drivers/audio.c \
   $(PROJ_DIR)/drivers/i2c.c \
-  $(PROJ_DIR)/core.c \
+  $(PROJ_DIR)/modules/breakout.c \
+  $(PROJ_DIR)/system.c \
   $(PROJ_DIR)/main.c \
 
+
+#  $(PROJ_DIR)/core.c \
+#  $(PROJ_DIR)/modules/sleep.c \
+#  $(PROJ_DIR)/modules/scrollMenu.c \
+#  $(PROJ_DIR)/modules/main_menu.c \
+#  $(PROJ_DIR)/modules/settings.c \
+#  $(PROJ_DIR)/modules/watchface.c \
+#  $(PROJ_DIR)/modules/statusbar.c \
+#  $(PROJ_DIR)/modules/steamLocomotive.c \
+#  $(PROJ_DIR)/modules/date_adjust.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -246,9 +249,9 @@ LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
 
-nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=0
+nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=1000
 nrf52832_xxaa: CFLAGS += -D__STACK_SIZE=8192
-nrf52832_xxaa: ASMFLAGS += -D__HEAP_SIZE=0
+nrf52832_xxaa: ASMFLAGS += -D__HEAP_SIZE=1000
 nrf52832_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
 
 # Add standard libraries at the very end of the linker input, after all objects

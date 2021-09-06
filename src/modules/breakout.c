@@ -6,15 +6,17 @@
 #include "touch.h"
 #include "nrf_delay.h"
 #include "breakout.h"
-#include "core.h"
+#include "system.h"
 
-struct process breakout_process = {
-    .runExists = 1,
-    .run = &breakout_run,
-    .startExists = 1,
-    .start = &breakout_init,
-    .stopExists = 0,
-    .event = &event_always,
+void breakout_run();
+void breakout_init();
+
+static dependency dependencies[] = {{&display, running}, {&touch, running}};
+static task tasks[] = {{&breakout_init, start, 2, dependencies}, {&breakout_run, run, 0}};
+
+process breakout = {
+    .taskCnt = 2,
+    .tasks = tasks
 };
 
 
@@ -302,8 +304,6 @@ void breakout_init() {
     ball.y = 120;
     ball.vx = -1;
     ball.vy = 1;
-
-    touch_init();
 
     batLocation = 0;
 }

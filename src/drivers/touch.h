@@ -15,7 +15,7 @@ struct touchPoints {
 };
 
 
-int touch_init();
+void touch_init();
 
 void touch_wake();
 void touch_sleep();
@@ -25,4 +25,5 @@ int touch_refresh(struct touchPoints* touchPoint);
 // only one can be subscribed for now
 void subscribeTouchInterrupt(void function());
 
+extern process touch;
 
