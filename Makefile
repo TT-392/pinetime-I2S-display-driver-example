@@ -35,6 +35,7 @@ SRC_FILES += \
   $(PROJ_DIR)/drivers/i2c.c \
   $(PROJ_DIR)/modules/breakout.c \
   $(PROJ_DIR)/system.c \
+  $(PROJ_DIR)/modules/watchface.c \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/modules/steamLocomotive.c \
 

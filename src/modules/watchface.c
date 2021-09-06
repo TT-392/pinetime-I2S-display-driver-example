@@ -1,6 +1,6 @@
 #include <math.h>
 #include "calctime.h"
-#include "clock_pine.c"
+#include "clock_pine.h"
 #include "display.h"
 #include "display_print.h"
 #include "semihost.h"
@@ -8,19 +8,21 @@
 #include "systick.h"
 #include "geometry.h"
 #include "wdt.h"
-#include "core.h"
 #include "watchface.h"
 #include "main_menu.h"
 #include "battery.h"
-#include "sleep.h"
+//#include "sleep.h"
 
-struct process watchface = {
-    .runExists = 1,
-    .run = &digitalWatch_run,
-    .startExists = 1,
-    .start = &digitalWatch_init,
-    .stopExists = 0,
-    .event = &secondPassed
+void digitalWatch_init();
+void digitalWatch_run();
+
+static dependency dependencies[] = {{&display, running}, {&touch, running}};
+static task tasks[] = {{&digitalWatch_init, start, 2, dependencies}, {&digitalWatch_run, run, 0}};
+
+process watchface = {
+    .taskCnt = 2,
+    .tasks = tasks,
+    .trigger = &secondPassed
 };
 
 int drawSegment(int x, int y, int bevelSwitch1, int bevelSwitch2, int width, int height, bool horizontal, uint16_t color)  {
@@ -415,14 +417,14 @@ void digitalWatch_run() {
 
     if (touchPoint.tab != 0) {
         touch_refresh(&touchPoint); // is this one needed?
-        sleep();
+        //sleep();
         touch_refresh(&touchPoint);
         display_backlight(255);
     }
 
     if (touchPoint.gesture == 0x0C) {
-        core_stop_process(&watchface);
-        core_start_process(&main_menu);
+        //core_stop_process(&watchface);
+        //core_start_process(&main_menu);
     }
 }
 

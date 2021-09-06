@@ -1,10 +1,10 @@
 #pragma once
 
-#include "core.h"
+#include "system.h"
 
 void digitalWatch_init();
 
 void digitalWatch_run();
 
-extern struct process watchface;
+extern process watchface;
 

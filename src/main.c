@@ -15,7 +15,7 @@
 //#include "statusbar.h"
 //#include "scrollMenu.h"
 #include "systick.h"
-//#include "watchface.h"
+#include "watchface.h"
 #include "date.h"
 #include "touch.h"
 #include "uart.h"
@@ -32,8 +32,8 @@
 static bool toggle = 1;
 
 int main(void) {
-    //clock_setup();
-    //battery_init();
+    clock_setup();
+    battery_init();
     //date_init();
     //sysTick_init();
     //date_init();
@@ -60,6 +60,7 @@ int main(void) {
     //touch_init();
     system_task(start, &breakout);
     system_task(start, &sl);
+    system_task(start, &watchface);
 
     display_backlight(255);
 
