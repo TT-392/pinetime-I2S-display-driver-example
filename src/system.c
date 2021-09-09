@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+#include "nrf.h"
 #include "system.h"
 
 static process **knownProcesses;
@@ -97,13 +98,25 @@ bool process_has_task (taskType type, process *Process) {
 }
 
 void system_run () {
+    event_always = 1;
+    process *processes_to_run[knownProcessCount];
+    int process_index = 0;
+
+    __disable_irq();
     for (int i = 0; i < knownProcessCount; i++) {
-        event_always = 1;
-
         if (knownProcesses[i]->status == running && process_has_task(run, knownProcesses[i]) && *(knownProcesses[i]->trigger)) {
-            system_task(run, knownProcesses[i]);
-
-            *(knownProcesses[i]->trigger) = 0;
+            processes_to_run[process_index] = knownProcesses[i]; 
+            process_index++;
         }
     }
+
+    for (int i = 0; i < process_index; i++) {
+        *(processes_to_run[i]->trigger) = 0;
+    }
+    __enable_irq();
+
+    for (int i = 0; i < process_index; i++) {
+        system_task(run, processes_to_run[i]);
+    }
+
 }
