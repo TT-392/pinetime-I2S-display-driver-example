@@ -34,6 +34,9 @@ SRC_FILES += \
   $(PROJ_DIR)/drivers/audio.c \
   $(PROJ_DIR)/drivers/i2c.c \
   $(PROJ_DIR)/modules/breakout.c \
+  $(PROJ_DIR)/modules/main_menu.c \
+  $(PROJ_DIR)/modules/scrollMenu.c \
+  $(PROJ_DIR)/events/time_event_handler.c \
   $(PROJ_DIR)/system.c \
   $(PROJ_DIR)/modules/watchface.c \
   $(PROJ_DIR)/main.c \
@@ -42,8 +45,6 @@ SRC_FILES += \
 
 #  $(PROJ_DIR)/core.c \
 #  $(PROJ_DIR)/modules/sleep.c \
-#  $(PROJ_DIR)/modules/scrollMenu.c \
-#  $(PROJ_DIR)/modules/main_menu.c \
 #  $(PROJ_DIR)/modules/settings.c \
 #  $(PROJ_DIR)/modules/watchface.c \
 #  $(PROJ_DIR)/modules/statusbar.c \
@@ -187,6 +188,7 @@ INC_FOLDERS += \
   $(PROJ_DIR)/modules\
   $(PROJ_DIR)/drivers/pinetime_display_driver\
   $(PROJ_DIR)/utils\
+  $(PROJ_DIR)/events\
   $(PROJ_DIR)/\
   $(PROJ_DIR)/drivers\
   $(PROJ_DIR)/resources\

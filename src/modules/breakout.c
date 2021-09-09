@@ -7,19 +7,18 @@
 #include "nrf_delay.h"
 #include "breakout.h"
 #include "system.h"
+#include "time_event_handler.h"
 
 void breakout_run();
 void breakout_init();
 
-static dependency dependencies[] = {{&display, running}, {&touch, running}};
-static task tasks[] = {{&breakout_init, start, 2, dependencies}, {&breakout_run, run, 0}};
+static dependency dependencies[] = {{&display, running}, {&touch, running}, {&time_event_handler, running}};
+static task tasks[] = {{&breakout_init, start, 3, dependencies}, {&breakout_run, run, 0}};
 
 process breakout = {
     .taskCnt = 2,
     .tasks = tasks,
-    .trigger = &event_always
 };
-
 
 struct Ball {
     uint8_t x;
@@ -306,6 +305,8 @@ void breakout_init() {
     ball.vx = -1;
     ball.vy = 1;
 
+    breakout.trigger = create_time_event(100);
+
     batLocation = 0;
 }
 
@@ -325,5 +326,5 @@ void breakout_run() {
 
     render_breakout(batLocation , &ball);
 
-    nrf_delay_ms(5);
+ //   nrf_delay_ms(5);
 }

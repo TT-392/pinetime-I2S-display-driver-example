@@ -19,7 +19,7 @@
 #include "date.h"
 #include "touch.h"
 #include "uart.h"
-//#include "main_menu.h"
+#include "main_menu.h"
 #include "audio.h"
 #include "bad_apple_midi.h"
 #include <math.h>
@@ -55,14 +55,18 @@ int main(void) {
     bool backlight = 0;
 
     //display_init();
-    //drawMono(0, 0, 239, 319, frame, 0x0000, 0xffff);
 
     //touch_init();
+    system_task(start, &main_menu);
     system_task(start, &breakout);
     system_task(start, &sl);
     system_task(start, &watchface);
 
     display_backlight(255);
+   // drawMono(0, 0, 239, 319, frame, 0x0000, 0xffff);
+
+
+
 
     //breakout_init();
     while (1) {

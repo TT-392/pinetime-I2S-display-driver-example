@@ -1,5 +1,6 @@
 #pragma once
 #include "nrf.h"
+#include "system.h"
 
 struct touchPoints {
     uint8_t gesture;

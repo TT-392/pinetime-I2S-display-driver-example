@@ -5,29 +5,19 @@
 #include "steamLocomotive.h"
 #include "display.h"
 #include "system.h"
+#include "time_event_handler.h"
 
 void sl_init();
 void sl_stop();
 void sl_run();
 
-static dependency dependencies[] = {{&display, running}};
-static task tasks[] = {{&sl_init, start, 1, dependencies}, {&sl_run, run, 0}, {&sl_stop, stop, 0}};
+static dependency dependencies[] = {{&display, running}, {&time_event_handler, running}};
+static task tasks[] = {{&sl_init, start, 2, dependencies}, {&sl_run, run, 0}, {&sl_stop, stop, 0}};
 
 process sl = {
     .taskCnt = 3,
     .tasks = tasks,
-    .trigger = &sl_nextFrameReady
 };
-
-volatile bool sl_nextFrameReady = 1;
-
-void TIMER0_IRQHandler(void) {
-    sl_nextFrameReady = 1;
-
-    nrf_timer_event_clear(NRF_TIMER0, NRF_TIMER_EVENT_COMPARE0);
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_CLEAR);
-}
-
 
 void sl_static(int x, int y, uint16_t color_text, uint16_t color_bg) {
     char* train[6] = {
@@ -48,26 +38,11 @@ void sl_static(int x, int y, uint16_t color_text, uint16_t color_bg) {
 void sl_init() {
     drawSquare(0, 20, 239, 319, 0x0000);
 
-    // Irq setup
-    NVIC_SetPriority(TIMER0_IRQn, 15); // Lowes priority
-    NVIC_ClearPendingIRQ(TIMER0_IRQn);
-    NVIC_EnableIRQ(TIMER0_IRQn);
-
-    nrf_timer_mode_set(NRF_TIMER0,NRF_TIMER_MODE_TIMER);
-    nrf_timer_bit_width_set(NRF_TIMER0, NRF_TIMER_BIT_WIDTH_32);
-    nrf_timer_frequency_set(NRF_TIMER0, NRF_TIMER_FREQ_1MHz);
-    nrf_timer_cc_write(NRF_TIMER0, NRF_TIMER_CC_CHANNEL0, 1000000/8);
-
-    nrf_timer_int_enable(NRF_TIMER0,NRF_TIMER_INT_COMPARE0_MASK );
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_START);
+    sl.trigger = create_time_event(8);
 }
 
 void sl_stop() {
-    // Irq setup
-    NVIC_DisableIRQ(TIMER0_IRQn);
-
-    nrf_timer_int_disable(NRF_TIMER0, NRF_TIMER_INT_COMPARE0_MASK);
-    nrf_timer_task_trigger(NRF_TIMER0, NRF_TIMER_TASK_STOP);
+    free_time_event(sl.trigger);
 }
 
 
@@ -75,7 +50,6 @@ void sl_run() {
     int y = 65;
     uint16_t color_text = 0xffff;
     uint16_t color_bg = 0x0000;
-    sl_nextFrameReady = 0;
     static int time = 0;
 
     static bool firstframe = 1;
