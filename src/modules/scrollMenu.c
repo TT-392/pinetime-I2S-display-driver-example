@@ -221,6 +221,8 @@ void drawMenuLine (int lineNr, int overWritingLineNr, int screenY, struct scroll
 static int actualScroll = 0; // the amount of scrolling that is actually gonna be on the display by the next cycle
 
 int scrollMenu_init (struct scrollMenu *menu) {
+    drawSquare(0, 240, 239, 319, 0x0000);
+
     // convert text to bmp
     for (int i = 0; i < menu->length; i++) {
         int textLength = 0;

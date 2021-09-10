@@ -6,17 +6,20 @@
 #include "touch.h"
 #include "nrf_delay.h"
 #include "breakout.h"
+#include "main_menu.h"
 #include "system.h"
+#include "statusbar.h"
 #include "time_event_handler.h"
 
 void breakout_run();
 void breakout_init();
+void breakout_stop();
 
-static dependency dependencies[] = {{&display, running}, {&touch, running}, {&time_event_handler, running}};
-static task tasks[] = {{&breakout_init, start, 3, dependencies}, {&breakout_run, run, 0}};
+static dependency dependencies[] = {{&display, running}, {&touch, running}, {&time_event_handler, running}, {&statusbar, stopped}};
+static task tasks[] = {{&breakout_init, start, 3, dependencies}, {&breakout_run, run, 0}, {&breakout_stop, stop, 0}};
 
 process breakout = {
-    .taskCnt = 2,
+    .taskCnt = 3,
     .tasks = tasks,
 };
 
@@ -308,6 +311,10 @@ void breakout_init() {
     breakout.trigger = create_time_event(100);
 
     batLocation = 0;
+
+    NRF_GPIOTE->CONFIG[3] = GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos |
+        2 << GPIOTE_CONFIG_POLARITY_Pos |
+        13 << GPIOTE_CONFIG_PSEL_Pos;
 }
 
 void breakout_run() {
@@ -322,9 +329,16 @@ void breakout_run() {
 
     if (batLocation > 239) batLocation = 239;
     if (batLocation < 0) batLocation = 0;
-    batLocation = ball.x;
 
     render_breakout(batLocation , &ball);
+    
+    if (NRF_GPIOTE->EVENTS_IN[3]) {
+        NRF_GPIOTE->EVENTS_IN[3] = 0;
+        system_task(stop, &breakout);
+        system_task(start, &main_menu);
+    }
+}
 
- //   nrf_delay_ms(5);
+void breakout_stop() {
+    drawSquare(0, 0, 239, 239, 0x0000);
 }

@@ -6,13 +6,14 @@
 #include "display.h"
 #include "system.h"
 #include "time_event_handler.h"
+#include "statusbar.h"
 
 void sl_init();
 void sl_stop();
 void sl_run();
 
-static dependency dependencies[] = {{&display, running}, {&time_event_handler, running}};
-static task tasks[] = {{&sl_init, start, 2, dependencies}, {&sl_run, run, 0}, {&sl_stop, stop, 0}};
+static dependency dependencies[] = {{&display, running}, {&time_event_handler, running}, {&statusbar, running}};
+static task tasks[] = {{&sl_init, start, 3, dependencies}, {&sl_run, run, 0}, {&sl_stop, stop, 0}};
 
 process sl = {
     .taskCnt = 3,
@@ -124,7 +125,7 @@ void sl_run() {
     time++;
     if (time >= (30+22)) {
         time = 0;
-        //core_stop_process(&sl);
-        //core_start_process(&main_menu);
+        system_task(stop, &sl);
+        system_task(start, &main_menu);
     } 
 }

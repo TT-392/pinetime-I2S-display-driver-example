@@ -81,10 +81,20 @@ static void run_task (task Task, process *Process) {
 }
 
 void system_task (taskType type, process *Process) {
+    bool taskPresent = 0;
     for (int i = 0; i < Process->taskCnt; i++) {
         if (Process->tasks[i].type == type) {
             run_task(Process->tasks[i], Process);
+            taskPresent = 1;
         }
+    }
+    if (!taskPresent) {
+        if (type == start) Process->status = running;
+        else if (type == stop) Process->status = stopped;
+        else if (type == wake) Process->status = running;
+        else if (type == sleep) Process->status = sleeping;
+
+        add_to_known_processes(Process);
     }
 }
 

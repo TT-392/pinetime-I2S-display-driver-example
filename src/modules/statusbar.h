@@ -1,6 +1,4 @@
 #pragma once
-#include "core.h"
+#include "system.h"
 
-void statusbar_run();
-
-extern struct process statusbar;
+extern process statusbar;

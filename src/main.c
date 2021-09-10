@@ -12,7 +12,7 @@
 //#include "modules/date.c"
 //#include "modules/heart.c"
 #include "semihost.h"
-//#include "statusbar.h"
+#include "statusbar.h"
 //#include "scrollMenu.h"
 #include "systick.h"
 #include "watchface.h"
@@ -23,7 +23,7 @@
 #include "audio.h"
 #include "bad_apple_midi.h"
 #include <math.h>
-//#include "date_adjust.h"
+#include "date_adjust.h"
 #include "clock_pine.h"
 #include "breakout.h"
 #include "system.h"
@@ -37,48 +37,18 @@ int main(void) {
     //date_init();
     //sysTick_init();
     //date_init();
-    bool osRunning = 1;
-
-
-    int x = 0;
-
-
-    int i = 320;
-    int counter = 0;
-
 
     nrf_gpio_cfg_output(15);	
     nrf_gpio_pin_write(15,1);
     nrf_gpio_cfg_input(13, NRF_GPIO_PIN_PULLDOWN);
 
+    system_task(start, &display);
+    drawSquare(0, 0, 239, 319, 0x0000);
 
-    bool backlight = 0;
-
-    //display_init();
-
-    //touch_init();
     system_task(start, &main_menu);
-    system_task(start, &breakout);
-    system_task(start, &sl);
-    system_task(start, &watchface);
-
     display_backlight(255);
-   // drawMono(0, 0, 239, 319, frame, 0x0000, 0xffff);
 
-
-
-
-    //breakout_init();
     while (1) {
-     //   breakout_run();
         system_run();
     }
-
-   // core_start_process(&main_menu);
-   // core_start_process(&statusbar);
-
-   // while(osRunning) {
-   //     core_run();
-   //     wdt_feed();
-   // }
 }

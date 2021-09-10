@@ -1,17 +1,21 @@
 #include "scrollMenu.h"
 #include "display.h"
 #include "main_menu.h"
-//#include "settings.h"
+#include "settings.h"
+#include "steamLocomotive.h"
 #include "breakout.h"
 #include "system.h"
 #include "touch.h"
+#include "icons.h"
+#include "statusbar.h"
+#include "watchface.h"
 
 void menu_init();
 void menu_run();
 void menu_stop();
 
-static dependency dependencies[] = {{&display, running}, {&touch, running}};
-static task tasks[] = {{&menu_init, start, 2, dependencies}, {&menu_run, run, 0}, {&menu_stop, stop, 0}};
+static dependency dependencies[] = {{&display, running}, {&touch, running}, {&statusbar, running}};
+static task tasks[] = {{&menu_init, start, 3, dependencies}, {&menu_run, run, 0}, {&menu_stop, stop}};
 
 process main_menu = {
     .taskCnt = 3,
@@ -21,7 +25,6 @@ process main_menu = {
 
 static struct menu_item menu_items[13] = { // first element reserved for text
     {"clock",      2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
-    {"sleep",      2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"SL",         2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, trainIcon,  }}},
     {"settings",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x528A, settings_circled,}}},
     {"breakout",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, icon_breakout,     }}},
@@ -38,7 +41,7 @@ static struct menu_item menu_items[13] = { // first element reserved for text
 static struct scrollMenu menu = {
     .top = 20,
     .bottom = 238,
-    .length = 13,
+    .length = 12,
     .items = menu_items,
     .item_size = 73,
     .icon_top = 0,
@@ -48,7 +51,6 @@ static struct scrollMenu menu = {
 
 
 void menu_init() {    
-    drawSquare(0, 0, 239, 319, 0x0000);
     scrollMenu_init(&menu);
     //core_start_process(&statusbar);
 }
@@ -57,36 +59,29 @@ void menu_run() {
     int selectedItem = drawScrollMenu(menu);
 
     if (selectedItem != -1) {
-        display_scroll(320, 0, 0, 0);
 
         if (selectedItem == 0) {
-            //core_stop_process(&main_menu);
-            //core_start_process(&watchface);
-            return;
+            system_task(stop, &main_menu);
+            system_task(start, &watchface);
         }
         if (selectedItem == 1) {
-            drawSquare(0, 0, 239, 319, 0x0000);
-            scrollMenu_init(&menu);
-            display_backlight(255);
+            system_task(stop, &main_menu);
+            system_task(start, &sl);
         }
         if (selectedItem == 2) {
-            //core_stop_process(&main_menu);
-            //core_start_process(&sl);
-            return;
+            system_task(stop, &main_menu);
+            system_task(start, &settings);
         }
         if (selectedItem == 3) {
-            //core_stop_process(&main_menu);
-            //core_start_process(&settings);
-            return;
+            system_task(stop, &main_menu);
+            system_task(start, &breakout);
         }
         if (selectedItem == 4) {
-            //core_stop_process(&main_menu);
-            //core_start_process(&breakout_process);
-            return;
         }
     }
 }
 
 void menu_stop() {
-    ///core_stop_process(&statusbar);
+    drawSquare(0, 20, 239, 239, 0x0000);
+    display_scroll(320, 0, 0, 0);
 }

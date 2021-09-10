@@ -4,20 +4,20 @@
 #include <stdbool.h>
 #include "wdt.h"
 
-static bool wake = 0;
+static bool Wake = 0;
 
-void wakeInterrupt() {
-    wake = 1;
+void WakeInterrupt() {
+    Wake = 1;
 }
 
-void sleep() {
-    wake = 0;
+void system_sleep() {
+    Wake = 0;
     display_backlight(0);
-    subscribeTouchInterrupt(wakeInterrupt);
+    subscribeTouchInterrupt(WakeInterrupt);
 
     touch_sleep();
 
-    while (!wake) {
+    while (!Wake) {
         __WFI();
         wdt_feed();
     }

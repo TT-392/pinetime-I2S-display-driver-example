@@ -1,6 +1,5 @@
 #pragma once
 #include <stdint.h>
-#include "icons.c"
 
 struct menuBMP { // (x2 - x1 + 1) % 8 should always be 0
     int x1;

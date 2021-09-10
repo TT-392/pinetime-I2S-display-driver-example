@@ -1,7 +1,6 @@
 #include "calctime.h"
 #include "display.h"
 #include "display_print.h"
-#include "core.h"
 #include "main_menu.h"
 #include "clock_pine.h"
 #include "nrf.h"
@@ -9,25 +8,26 @@
 #include "touch.h"
 #include "date_adjust.h"
 #include "settings.h"
+#include "statusbar.h"
+#include "system.h"
 
-struct process date_adjust = {
-    .runExists = 1,
-    .run = &date_adjust_run,
-    .startExists = 1,
-    .start = &date_adjust_init,
-    .stopExists = 0,
-    .event = &event_always
+void date_adjust_init();
+void date_adjust_run();
+void date_adjust_stop();
+
+static dependency dependencies[] = {{&display, running}, {&touch, running}, {&statusbar, stopped}};
+static task tasks[] = {{&date_adjust_init, start, 3, dependencies}, {&date_adjust_run, run, 0}, {&date_adjust_stop, stop, 0}};
+
+process date_adjust = {
+    .taskCnt = 3,
+    .tasks = tasks,
+    .trigger = &event_always
 };
 
 void date_adjust_init() {
-    drawSquare(0, 0, 239, 239, 0x0000);
-
     NRF_GPIOTE->CONFIG[3] = GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos |
         2 << GPIOTE_CONFIG_POLARITY_Pos |
         13 << GPIOTE_CONFIG_PSEL_Pos;
-
-    // maybe implement process dependencies
-    //touch_init();
 }
 
 
@@ -134,7 +134,11 @@ void date_adjust_run() {
 
     if (NRF_GPIOTE->EVENTS_IN[3]) {
         NRF_GPIOTE->EVENTS_IN[3] = 0;
-        core_stop_process(&date_adjust);
-        core_start_process(&settings);
+        system_task(stop, &date_adjust);
+        system_task(start, &settings);
     }
+}
+
+void date_adjust_stop() {
+    drawSquare(0, 0, 239, 239, 0x0000);
 }

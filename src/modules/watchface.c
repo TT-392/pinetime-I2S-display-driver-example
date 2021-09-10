@@ -11,19 +11,25 @@
 #include "watchface.h"
 #include "main_menu.h"
 #include "battery.h"
-//#include "sleep.h"
+#include "statusbar.h"
+#include "sleep.h"
 
 void digitalWatch_init();
 void digitalWatch_run();
+void digitalWatch_stop();
 
-static dependency dependencies[] = {{&display, running}, {&touch, running}};
-static task tasks[] = {{&digitalWatch_init, start, 2, dependencies}, {&digitalWatch_run, run, 0}};
+static dependency dependencies[] = {{&display, running}, {&touch, running}, {&statusbar, stopped}};
+static task tasks[] = {{&digitalWatch_init, start, 3, dependencies}, {&digitalWatch_run, run, 0}, {&digitalWatch_stop, stop, 0}};
 
 process watchface = {
-    .taskCnt = 2,
+    .taskCnt = 3,
     .tasks = tasks,
     .trigger = &secondPassed
 };
+
+void digitalWatch_stop() {
+    drawSquare(0, 0, 239, 239, 0x0000);
+}
 
 int drawSegment(int x, int y, int bevelSwitch1, int bevelSwitch2, int width, int height, bool horizontal, uint16_t color)  {
     if (!horizontal) {
@@ -324,7 +330,6 @@ int draw14SegmentNumber(int xSegment, int ySegment, uint16_t character, int colo
 
 static uint64_t lastTime;
 void digitalWatch_init() {
-    drawSquare(0, 0, 239, 239, 0x0000);
     lastTime = cpuTime();
 }
 
@@ -417,14 +422,14 @@ void digitalWatch_run() {
 
     if (touchPoint.tab != 0) {
         touch_refresh(&touchPoint); // is this one needed?
-        //sleep();
+        system_sleep();
         touch_refresh(&touchPoint);
         display_backlight(255);
     }
 
     if (touchPoint.gesture == 0x0C) {
-        //core_stop_process(&watchface);
-        //core_start_process(&main_menu);
+        system_task(stop, &watchface);
+        system_task(start, &main_menu);
     }
 }
 

@@ -1,9 +1,5 @@
 #pragma once
+#include "system.h"
 
-extern struct process settings;
+extern process settings;
 
-void settings_init();
-
-void settings_run();
-
-void settings_stop();

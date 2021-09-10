@@ -2,15 +2,20 @@
 #include "battery.h"
 #include "nrf_gpio.h"
 #include "clock_pine.h"
-#include "core.h"
-#include "statusbar.h"
+#include "display.h"
+#include "system.h"
 
-struct process statusbar = {
-    .runExists = 1,
-    .run = &statusbar_run,
-    .startExists = 0,
-    .stopExists = 0,
-    .event = &secondPassed
+void statusbar_run();
+void statusbar_init() {statusbar_run();}
+void statusbar_stop();
+
+static dependency dependencies[] = {{&display, running}};
+static task tasks[] = {{&statusbar_init, start, 1, dependencies}, {&statusbar_run, run, 0}, {&statusbar_stop, stop, 0}};
+
+process statusbar = {
+    .taskCnt = 3,
+    .tasks = tasks,
+    .trigger = &secondPassed
 };
 
 void statusbar_run() {
@@ -19,4 +24,8 @@ void statusbar_run() {
         color = 0x67EC;
     battery_draw_percent(200,0,color,0x0000);
     drawDate(0,0,"%H:%M:%S");
+}
+
+void statusbar_stop() {
+    drawSquare(0, 0, 239, 19, 0x0000);
 }

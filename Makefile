@@ -36,19 +36,15 @@ SRC_FILES += \
   $(PROJ_DIR)/modules/breakout.c \
   $(PROJ_DIR)/modules/main_menu.c \
   $(PROJ_DIR)/modules/scrollMenu.c \
+  $(PROJ_DIR)/modules/statusbar.c \
   $(PROJ_DIR)/events/time_event_handler.c \
   $(PROJ_DIR)/system.c \
   $(PROJ_DIR)/modules/watchface.c \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/modules/steamLocomotive.c \
-
-
-#  $(PROJ_DIR)/core.c \
-#  $(PROJ_DIR)/modules/sleep.c \
-#  $(PROJ_DIR)/modules/settings.c \
-#  $(PROJ_DIR)/modules/watchface.c \
-#  $(PROJ_DIR)/modules/statusbar.c \
-#  $(PROJ_DIR)/modules/date_adjust.c \
+  $(PROJ_DIR)/modules/date_adjust.c \
+  $(PROJ_DIR)/modules/settings.c \
+  $(PROJ_DIR)/modules/sleep.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \

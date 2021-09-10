@@ -1,3 +1,3 @@
 #pragma once
 
-void sleep();
+void system_sleep();
