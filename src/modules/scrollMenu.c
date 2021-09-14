@@ -286,7 +286,8 @@ int drawScrollMenu (struct scrollMenu menu) {
         //int memY = 20 + ((tabY - 20 + actualScroll) % VSA);
 
         int selectedItem = ((tabY - 20) + actualScroll) / menu.item_size;
-        drawSelected(100, selectedItem, actualScroll, menu);
+        if (selectedItem < menu.length)
+            drawSelected(100, selectedItem, actualScroll, menu);
         return selectedItem;
     }
     return -1;

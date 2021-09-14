@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "nrf.h"
+#include "wdt.h"
 #include "system.h"
 
 static process **knownProcesses;
@@ -128,5 +129,6 @@ void system_run () {
     for (int i = 0; i < process_index; i++) {
         system_task(run, processes_to_run[i]);
     }
-
+    
+    wdt_feed();
 }

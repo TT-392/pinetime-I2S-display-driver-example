@@ -16,7 +16,7 @@ void breakout_init();
 void breakout_stop();
 
 static dependency dependencies[] = {{&display, running}, {&touch, running}, {&time_event_handler, running}, {&statusbar, stopped}};
-static task tasks[] = {{&breakout_init, start, 3, dependencies}, {&breakout_run, run, 0}, {&breakout_stop, stop, 0}};
+static task tasks[] = {{&breakout_init, start, 4, dependencies}, {&breakout_run, run, 0}, {&breakout_stop, stop, 0}};
 
 process breakout = {
     .taskCnt = 3,
@@ -30,37 +30,63 @@ struct Ball {
     int vy;
 };
 
+static const uint8_t bw = 8;
+static const uint8_t step = 240/bw;
+static const uint8_t gaps = 2;
+static const uint8_t blHeight = 10;
+static uint16_t color = 0xffff;
+static const uint8_t offset = 10;
+
+static uint8_t blocksCache[8] = {0x3f,0x3f,0x3f,0x3f,0x3f,0x3f,0x3f,0x3f};
+static int firstRender = 1;
+static int score = 0;
+static _Bool scoreUpdate = 1;
+static int lastBat;
+static _Bool reset = 0;
+static int lives = 3;
+    
+void reset_breakout(struct Ball* ball) {
+    ball->x = 120;
+    ball->y = 120;
+    ball->vx = 1;
+    ball->vy = -2;
+    for (int i = 0; i < 8; i++) blocksCache[i] = 0x3f;
+    firstRender = 1;
+    score = 0;
+    scoreUpdate = 1;
+    reset = 0;
+
+    drawSquare(0, 0, 239, 239, 0x0000);
+    for (int row = 0; row < 6; row++) {
+        if (row < 2)
+            color = 0xf800;
+        else if (row < 4)
+            color = 0xfc40;
+        else 
+            color = 0x47E0;
+
+        for (int column = 0; column < bw; column++) {
+            uint8_t x1 = column*step+gaps;
+            uint8_t y1 = offset + blHeight*row + gaps;
+            uint8_t x2 = step+column*step-gaps;
+            uint8_t y2 = offset + blHeight*(row+1) - gaps;
+
+            drawSquare(x1, y1, x2, y2, color);
+
+        }
+    }
+}
+
 void render_breakout (uint8_t bat, struct Ball* ball) {
-    static uint8_t blocksCache[8] = {0x3f,0x3f,0x3f,0x3f,0x3f,0x3f,0x3f,0x3f};
-    static int firstRender = 1;
-    static int score = 0;
-    static _Bool scoreUpdate = 1;
-    static int lastBat;
-    static _Bool reset = 0;
-    static int lives = 3;
 
     if (score == 176)
         reset = 1;
 
     if (reset) {
-        ball->x = 120;
-        ball->y = 120;
-        ball->vx = 1;
-        ball->vy = -2;
-        for (int i = 0; i < 8; i++) blocksCache[i] = 0x3f;
-        firstRender = 1;
-        score = 0;
-        scoreUpdate = 1;
-        reset = 0;
+        reset_breakout(ball);
     }
     
 
-    uint8_t bw = 8;
-    uint8_t step = 240/bw;
-    uint8_t gaps = 2;
-    uint8_t blHeight = 10;
-    uint16_t color = 0xffff;
-    uint8_t offset = 10;
 
     // bats can't cross walls
     int batWidth = 40;
@@ -100,29 +126,6 @@ void render_breakout (uint8_t bat, struct Ball* ball) {
 
 
     
-    if (firstRender) {
-        drawSquare(0, 0, 239, 239, 0x0000);
-        for (int row = 0; row < 6; row++) {
-            if (row < 2)
-                color = 0xf800;
-            else if (row < 4)
-                color = 0xfc40;
-            else 
-                color = 0x47E0;
-
-            for (int column = 0; column < bw; column++) {
-                uint8_t x1 = column*step+gaps;
-                uint8_t y1 = offset + blHeight*row + gaps;
-                uint8_t x2 = step+column*step-gaps;
-                uint8_t y2 = offset + blHeight*(row+1) - gaps;
-
-                drawSquare(x1, y1, x2, y2, color);
-
-            }
-        }
-        firstRender = 0;
-    }
-
     int ballW = 6;
     int ballH = 4;
 
@@ -308,13 +311,15 @@ void breakout_init() {
     ball.vx = -1;
     ball.vy = 1;
 
-    breakout.trigger = create_time_event(100);
+    breakout.trigger = create_time_event(70);
 
     batLocation = 0;
 
     NRF_GPIOTE->CONFIG[3] = GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos |
         2 << GPIOTE_CONFIG_POLARITY_Pos |
         13 << GPIOTE_CONFIG_PSEL_Pos;
+
+    reset_breakout(&ball);
 }
 
 void breakout_run() {
