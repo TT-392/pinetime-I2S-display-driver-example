@@ -3,5 +3,5 @@
 
 void audio_init();
 
-void audio_set_freq(int frequency, int pulseWidth);
+void audio_set_freq(double frequency, float volume);
 
