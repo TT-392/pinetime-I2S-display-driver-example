@@ -12,6 +12,7 @@
 #include "main_menu.h"
 #include "battery.h"
 #include "statusbar.h"
+#include "power_manager.h"
 
 void digitalWatch_init();
 void digitalWatch_run();
@@ -28,6 +29,7 @@ process watchface = {
 
 void digitalWatch_stop() {
     drawSquare(0, 0, 239, 239, 0x0000);
+    set_system_timeout(-1);
 }
 
 int drawSegment(int x, int y, int bevelSwitch1, int bevelSwitch2, int width, int height, bool horizontal, uint16_t color)  {
@@ -329,6 +331,7 @@ int draw14SegmentNumber(int xSegment, int ySegment, uint16_t character, int colo
 
 static uint64_t lastTime;
 void digitalWatch_init() {
+    set_system_timeout(50);
     lastTime = cpuTime();
 }
 

@@ -40,6 +40,9 @@ void system_sleep() {
 static int timeout= 150;
 
 void set_system_timeout(int timeoutInTenthsOfSeconds) {
+    if (timeoutInTenthsOfSeconds == -1)
+        timeout = 150;    
+
     timeout = timeoutInTenthsOfSeconds;
 }
 
@@ -60,7 +63,7 @@ void power_manager_run() {
         counter = 0;
     }
 
-    if (counter > timeoutInTenthsOfSeconds) {
+    if (counter > timeout) {
         display_backlight(0);
         system_sleep();
         display_backlight(255);
