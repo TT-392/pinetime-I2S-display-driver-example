@@ -44,7 +44,7 @@ SRC_FILES += \
   $(PROJ_DIR)/modules/steamLocomotive.c \
   $(PROJ_DIR)/modules/date_adjust.c \
   $(PROJ_DIR)/modules/settings.c \
-  $(PROJ_DIR)/modules/sleep.c \
+  $(PROJ_DIR)/modules/power_manager.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \

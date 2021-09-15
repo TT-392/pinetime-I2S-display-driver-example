@@ -12,7 +12,6 @@
 #include "main_menu.h"
 #include "battery.h"
 #include "statusbar.h"
-#include "sleep.h"
 
 void digitalWatch_init();
 void digitalWatch_run();
@@ -418,21 +417,6 @@ void digitalWatch_run() {
 
     struct touchPoints touchPoint;
     touch_refresh(&touchPoint);
-
-    static int counter = 0;
-    if (touchPoint.event) {
-        counter = 0;
-    }
-    counter++;
-
-
-    if (touchPoint.tab != 0 || counter == 15) {
-        touch_refresh(&touchPoint); // is this one needed?
-        system_sleep();
-        touch_refresh(&touchPoint);
-        display_backlight(255);
-        counter = 0;
-    }
 
     if (touchPoint.gesture == 0x0C) {
         system_task(stop, &watchface);
