@@ -33,6 +33,17 @@
 static bool toggle = 1;
 
 int main(void) {
+    audio_init();
+    for (int i = 0; i < 900; i++) {
+        if (midi[i] != -1)
+            audio_set_freq(pow(2,(double)(midi[i]-69-12*3)/12)*440, 0.7);
+        else 
+            audio_set_freq(440, 0);
+        nrf_delay_ms(100);
+    }
+    while(1) {
+        wdt_feed;
+    }
     clock_setup();
     battery_init();
     //date_init();

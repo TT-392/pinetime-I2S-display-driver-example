@@ -32,15 +32,15 @@ void audio_init() {
     NRF_TIMER2->INTENSET = 1 << TIMER_INTENSET_COMPARE1_Pos;
 }
 
-void audio_set_freq(int frequency, int pulseWidth) {
+void audio_set_freq(double frequency, float volume) {
     NRF_TIMER2->TASKS_STOP = 1;
 
-    //if (volume != 0) {
-        NRF_TIMER2->CC[0] = pulseWidth;
+    if (volume != 0) {
+        NRF_TIMER2->CC[0] = ((16000000/frequency) / 13)* volume;
         NRF_TIMER2->CC[1] = 16000000/frequency;
         NRF_TIMER2->EVENTS_COMPARE[1] = 0;
         NRF_TIMER2->TASKS_CLEAR = 1;
         flip2 = 1;
         NRF_TIMER2->TASKS_START = 1;
-    //}
+    }
 }
