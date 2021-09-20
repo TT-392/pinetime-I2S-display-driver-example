@@ -1,7 +1,10 @@
 #include <nrf.h>
+#include <nrf_delay.h>
 #include <nrf_gpio.h>
+#include <math.h>
 #include "nrf_timer.h"
 #include "display.h"
+#include "bad_apple_midi.h"
 
 static bool flip2 = 1;
 void TIMER2_IRQHandler(void) {
@@ -42,5 +45,16 @@ void audio_set_freq(double frequency, float volume) {
         NRF_TIMER2->TASKS_CLEAR = 1;
         flip2 = 1;
         NRF_TIMER2->TASKS_START = 1;
+    }
+}
+
+void audio_test() {
+    audio_init();
+    for (int i = 0; i < 900; i++) {
+        if (midi[i] != -1)
+            audio_set_freq(pow(2,(double)(midi[i]-69-12*3)/12)*440, 0.7);
+        else 
+            audio_set_freq(440, 0);
+        nrf_delay_ms(100);
     }
 }
