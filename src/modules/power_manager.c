@@ -40,10 +40,10 @@ void system_sleep() {
 static int timeout= 150;
 
 void set_system_timeout(int timeoutInTenthsOfSeconds) {
-    if (timeoutInTenthsOfSeconds == -1)
-        timeout = 150;    
-
     timeout = timeoutInTenthsOfSeconds;
+
+    if (timeout == -1)
+        timeout = 150;    
 }
 
 void power_manager_init() {
