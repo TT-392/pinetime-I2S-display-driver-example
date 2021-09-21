@@ -33,9 +33,6 @@ static bool toggle = 1;
 int main(void) {
     clock_setup();
     battery_init();
-    //date_init();
-    //sysTick_init();
-    //date_init();
 
     nrf_gpio_cfg_output(15);	
     nrf_gpio_pin_write(15,1);

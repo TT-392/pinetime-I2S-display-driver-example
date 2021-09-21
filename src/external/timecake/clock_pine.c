@@ -1,4 +1,4 @@
-
+#include "compile_info.h"
 // pine clock code
 
 
@@ -27,7 +27,7 @@ volatile bool secondPassed = 0;
 int clock_setup(void)
 {
 
-    currentTime=1617873300;
+    currentTime = getCompileTime();
 
 	// Select the 32 kHz crystal and start the 32 kHz clock
 	NRF_CLOCK->LFCLKSRC = CLOCK_LFCLKSRC_SRC_Xtal << CLOCK_LFCLKSRC_SRC_Pos;

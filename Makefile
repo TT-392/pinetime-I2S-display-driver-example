@@ -21,6 +21,7 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(PROJ_DIR)/external/timecake/clock_pine.c \
   $(PROJ_DIR)/utils/wdt.c \
+  $(PROJ_DIR)/utils/compile_info.c \
   $(PROJ_DIR)/utils/semihost.c \
   $(PROJ_DIR)/utils/systick.c \
   $(PROJ_DIR)/utils/display_print.c \
