@@ -1,0 +1,10 @@
+Move more drivers to the core system
+Power_manager should be a dependency
+Redo the touch driver
+Move compile setup from bad apple to tt-time
+Reimplement timecake stuff
+Add schmitt trigger to battery level
+Implement bluetooth
+Move display_print stuff to a single function
+implement hrs
+implement accelerometer
