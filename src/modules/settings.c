@@ -4,6 +4,7 @@
 #include "icons.h"
 #include "display.h"
 #include "touch.h"
+#include "info.h"
 #include "statusbar.h"
 #include "date_adjust.h"
 
@@ -23,13 +24,14 @@ process settings = {
 
 static struct menu_item menu_items[13] = { // first element reserved for text
     {"adjust time",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
+    {"info",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"back",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
 };
 
 static struct scrollMenu menu = {
     .top = 20,
     .bottom = 238,
-    .length = 2,
+    .length = 3,
     .items = menu_items,
     .item_size = 73,
     .icon_top = 0,
@@ -54,6 +56,11 @@ void settings_run() {
             return;
         }
         if (selectedItem == 1) {
+            system_task(stop, &settings);
+            system_task(start, &info);
+            return;
+        }
+        if (selectedItem == 2) {
             system_task(stop, &settings);
             system_task(start, &main_menu);
             return;

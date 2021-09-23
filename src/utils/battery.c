@@ -1,5 +1,5 @@
 #include "display_print.h"
-#include "battery_pine.c"
+#include "battery_pine.h"
 
 float filteredPercentage = 0;
 
@@ -41,8 +41,9 @@ int battery_percent() {
     float voltage, percent;
 
     battery_read(&flags, &voltage, &percent);
+    return percent;
 
-    filteredPercentage += 0.001 * (percent - filteredPercentage);
+    //filteredPercentage += 0.001 * (percent - filteredPercentage);
 
-    return (int)filteredPercentage;
+    //return (int)filteredPercentage;
 }

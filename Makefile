@@ -20,6 +20,7 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(PROJ_DIR)/external/timecake/clock_pine.c \
+  $(PROJ_DIR)/external/timecake/battery_pine.c \
   $(PROJ_DIR)/utils/wdt.c \
   $(PROJ_DIR)/utils/compile_info.c \
   $(PROJ_DIR)/utils/semihost.c \
@@ -45,6 +46,7 @@ SRC_FILES += \
   $(PROJ_DIR)/modules/steamLocomotive.c \
   $(PROJ_DIR)/modules/date_adjust.c \
   $(PROJ_DIR)/modules/settings.c \
+  $(PROJ_DIR)/modules/info.c \
   $(PROJ_DIR)/modules/power_manager.c \
 
 # Include folders common to all targets
@@ -248,6 +250,7 @@ LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs
+#LDFLAGS += -u _printf_float
 
 nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=1000
 nrf52832_xxaa: CFLAGS += -D__STACK_SIZE=8192
