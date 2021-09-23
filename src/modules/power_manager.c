@@ -43,7 +43,9 @@ void set_system_timeout(int timeoutInTenthsOfSeconds) {
     timeout = timeoutInTenthsOfSeconds;
 
     if (timeout == -1)
-        timeout = 150;    
+        timeout = 150;   
+
+    counter = 0;
 }
 
 void power_manager_init() {
