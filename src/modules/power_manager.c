@@ -18,6 +18,7 @@ process power_manager = {
 };
 
 static bool Wake = 0;
+static int counter = 0;
 
 void WakeInterrupt() {
     Wake = 1;
@@ -60,7 +61,6 @@ void power_manager_run() {
     struct touchPoints touchPoint;
     touch_refresh(&touchPoint);
 
-    static int counter = 0;
     if (touchPoint.event) {
         counter = 0;
     }
