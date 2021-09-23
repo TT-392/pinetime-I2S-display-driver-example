@@ -17,13 +17,6 @@ int main(void) {
 
     system_task(start, &display);
     drawSquare(0, 0, 239, 319, 0x0000);
-    display_backlight(255);
-    system_task(start, &info);
-    while (1) {
-        system_run();
-    }
-    system_task(start, &display);
-    drawSquare(0, 0, 239, 319, 0x0000);
 
     system_task(start, &main_menu);
     system_task(start, &power_manager);
