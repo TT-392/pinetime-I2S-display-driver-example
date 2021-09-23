@@ -18,21 +18,29 @@ process info = {
     .trigger = &event_always
 };
 
-void info_init() {
+void show_battery() {
     char buffer[30];
     int flags;
     float voltage, percent;
 
     battery_read(&flags, &voltage, &percent);
 
-    snprintf(buffer, 30, "Compile time: %s", __DATE__);
+    sprintf(buffer, "Unfiltered battery data:", (int)(voltage * 1000));
+    drawString(0, 90, buffer, 0xffff, 0x0000);
+    sprintf(buffer, "voltage: %i mV", (int)(voltage * 1000));
+    drawString(0, 110, buffer, 0xffff, 0x0000);
+    sprintf(buffer, "Percentage: %i.%i", (int)percent, (int)(percent * 100) % 100); // this implementation fo printf doesn't support floats, that'd take a lot more space.
+    drawString(0, 130, buffer, 0xffff, 0x0000);
+}
+
+void info_init() {
+    char buffer[30];
+
+    sprintf(buffer, "Compile time: %s", __DATE__);
     drawString(0, 30, buffer, 0xffff, 0x0000);
     drawString(0, 50, __TIME__, 0xffff, 0x0000);
 
-    snprintf(buffer, "Battery voltage: %i", (int)3.2);
-    drawString(0, 70, buffer, 0xffff, 0x0000);
-    snprintf(buffer, "Battery voltage: %i", (int)percent);
-    drawString(0, 90, buffer, 0xffff, 0x0000);
+    show_battery();
 
     NRF_GPIOTE->CONFIG[3] = GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos |
         2 << GPIOTE_CONFIG_POLARITY_Pos |
@@ -44,11 +52,12 @@ void info_stop() {
 }
 
 void info_run() {
+    show_battery();
+
     if (NRF_GPIOTE->EVENTS_IN[3]) {
         NRF_GPIOTE->EVENTS_IN[3] = 0;
         system_task(stop, &info);
         system_task(start, &settings);
     }
-
 }
 

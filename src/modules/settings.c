@@ -24,8 +24,8 @@ process settings = {
 
 static struct menu_item menu_items[13] = { // first element reserved for text
     {"adjust time",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
-    {"info",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
-    {"back",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
+    {"info",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux}}},
+    {"back",  2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux}}},
 };
 
 static struct scrollMenu menu = {
