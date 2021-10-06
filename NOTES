@@ -1,0 +1,7 @@
+resources:
+RTC0: clock_pine
+RTC1: time_event_handler
+RTC2: bad apple
+SPIM0: spiflash & display
+TIMER1: i2c
+TIMER2: audio

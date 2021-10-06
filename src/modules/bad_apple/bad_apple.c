@@ -88,7 +88,7 @@ void wait_for_next_frame() {
     static int renderedFrames = 0;
 
     // counter increments at 32768 Hz, beware, will overflow after about 4 minutes.
-    while (((uint64_t)NRF_RTC0->COUNTER * 15) / 16384 < renderedFrames)
+    while (((uint64_t)NRF_RTC2->COUNTER * 15) / 16384 < renderedFrames)
         bad_apple_fetch_and_decompress(18400);
     renderedFrames++;
 }
