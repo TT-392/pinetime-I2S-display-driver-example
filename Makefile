@@ -35,6 +35,7 @@ SRC_FILES += \
   $(PROJ_DIR)/drivers/touch.c \
   $(PROJ_DIR)/drivers/audio.c \
   $(PROJ_DIR)/drivers/i2c.c \
+  $(PROJ_DIR)/drivers/flash.c \
   $(PROJ_DIR)/modules/breakout.c \
   $(PROJ_DIR)/modules/main_menu.c \
   $(PROJ_DIR)/modules/scrollMenu.c \
@@ -48,6 +49,11 @@ SRC_FILES += \
   $(PROJ_DIR)/modules/settings.c \
   $(PROJ_DIR)/modules/info.c \
   $(PROJ_DIR)/modules/power_manager.c \
+  $(PROJ_DIR)/modules/bad_apple/bad_apple.c \
+  $(PROJ_DIR)/modules/bad_apple/bad_apple_data.c \
+  $(PROJ_DIR)/modules/bad_apple/lz4.c \
+  $(PROJ_DIR)/modules/bad_apple/rtc.c \
+  $(PROJ_DIR)/modules/bad_apple/ringbuff.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -185,6 +191,7 @@ INC_FOLDERS += \
   $(PROJ_DIR)/external/nordic \
   $(PROJ_DIR)/external/timecake \
   $(PROJ_DIR)/modules\
+  $(PROJ_DIR)/modules/bad_apple\
   $(PROJ_DIR)/drivers/pinetime_display_driver\
   $(PROJ_DIR)/utils\
   $(PROJ_DIR)/events\
@@ -252,9 +259,9 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += --specs=nano.specs
 #LDFLAGS += -u _printf_float
 
-nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=1000
+nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=40000
 nrf52832_xxaa: CFLAGS += -D__STACK_SIZE=8192
-nrf52832_xxaa: ASMFLAGS += -D__HEAP_SIZE=1000
+nrf52832_xxaa: ASMFLAGS += -D__HEAP_SIZE=40000
 nrf52832_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
 
 # Add standard libraries at the very end of the linker input, after all objects

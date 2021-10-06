@@ -10,6 +10,9 @@
 #include "statusbar.h"
 #include "watchface.h"
 
+#include "bad_apple.h"
+#include "flash.h"
+
 void menu_init();
 void menu_run();
 void menu_stop();
@@ -24,11 +27,11 @@ process main_menu = {
 };
 
 static struct menu_item menu_items[13] = { // first element reserved for text
-    {"clock",      2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
+    {"Clock",      2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x06fe, clockDigital}}},
     {"SL",         2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, trainIcon,  }}},
-    {"settings",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x528A, settings_circled,}}},
-    {"breakout",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, icon_breakout,     }}},
-    {"uwu",        2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
+    {"Bettings",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x528A, settings_circled,}}},
+    {"Breakout",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0xffff, icon_breakout,     }}},
+    {"Bad apple",        2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"test",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"test",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
     {"test",       2, {{70, 28, 0, 0, 0xffff},{0, 12, 55, 60, 0x00f0, termux,     }}},
@@ -77,6 +80,10 @@ void menu_run() {
             system_task(start, &breakout);
         }
         if (selectedItem == 4) {
+            system_task(stop, &main_menu);
+            drawSquare(0, 0, 239, 239, 0x0000);
+            spiflash_init();
+            render_video();
         }
     }
 }

@@ -10,6 +10,7 @@
 int main(void) {
     clock_setup();
     battery_init();
+    spiflash_init();
 
     nrf_gpio_cfg_output(15);	
     nrf_gpio_pin_write(15,1);
