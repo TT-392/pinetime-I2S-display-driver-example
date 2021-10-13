@@ -259,9 +259,9 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += --specs=nano.specs
 #LDFLAGS += -u _printf_float
 
-nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=40000
+nrf52832_xxaa: CFLAGS += -D__HEAP_SIZE=20000
 nrf52832_xxaa: CFLAGS += -D__STACK_SIZE=8192
-nrf52832_xxaa: ASMFLAGS += -D__HEAP_SIZE=40000
+nrf52832_xxaa: ASMFLAGS += -D__HEAP_SIZE=20000
 nrf52832_xxaa: ASMFLAGS += -D__STACK_SIZE=8192
 
 # Add standard libraries at the very end of the linker input, after all objects

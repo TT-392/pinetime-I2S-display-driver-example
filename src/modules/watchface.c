@@ -357,7 +357,7 @@ void digitalWatch_run() {
     float segmentsWidth = length - lineWidth*5 - gap*2;
     float segmentWidth = (segmentsWidth + segmentGap) / segments;
 
-    int batterylevel = battery_percent();
+    int batterylevel = battery_percent() / 25;
     for (int i = 0; i < segments; i++) {
         drawSquare(x + lineWidth*3 + gap + i*segmentWidth, y + lineWidth*2, x + lineWidth*3 + ((i+1)*segmentWidth - segmentGap) + gap - 1, y + width - lineWidth*2 - 1, i >= 4 - batterylevel ? colorOn : colorOff); // contact
     }

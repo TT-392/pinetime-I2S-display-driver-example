@@ -10,6 +10,7 @@
 #include "rtc.h"
 #include "wdt.h"
 #include "display_print.h"
+#include "main_menu.h"
 
 struct dataBlock {
     int x1;
@@ -94,12 +95,25 @@ void wait_for_next_frame() {
 }
 
 void render_video() {
+    NRF_GPIOTE->CONFIG[3] = GPIOTE_CONFIG_MODE_Event << GPIOTE_CONFIG_MODE_Pos |
+        2 << GPIOTE_CONFIG_POLARITY_Pos |
+        13 << GPIOTE_CONFIG_PSEL_Pos;
+
     rtc_setup();
 
     ringbuffer *videobuffer = bad_apple_init();
 
 
     while (1) {
+        if (NRF_GPIOTE->EVENTS_IN[3]) {
+            NRF_GPIOTE->EVENTS_IN[3] = 0;
+            free(videobuffer);
+            flip(1);
+            drawSquare(0, 0, 239, 319, 0x0000);
+            system_task(start, &main_menu);
+            return;
+        }
+
         wdt_feed();
         struct dataBlock data = readBlock(videobuffer);
 
@@ -125,7 +139,6 @@ void render_video() {
 
             drawMono(data.x1, data.y1, data.x2+data.x1, data.y2+data.y1, data.bitmap, 0x0000, 0xffff);
 
-//            free(data.bitmap);
         }
     }
 }

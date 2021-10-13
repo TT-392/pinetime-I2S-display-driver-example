@@ -6,6 +6,7 @@
 #include "system.h"
 #include "info.h"
 #include "power_manager.h"
+#include "flash.h"
 
 int main(void) {
     clock_setup();
