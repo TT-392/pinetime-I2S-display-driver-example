@@ -6,8 +6,8 @@
 static ringbuffer *videobuffer;
 // NOTE: possible to make this a sort of ringbuffer for a performance gain, might be negligible
 static uint8_t spiflashbuffer[255];
-static int spiflashbuffer_rptr = 0;
-static uint32_t flashAddr = 0;
+static int spiflashbuffer_rptr;
+static uint32_t flashAddr;
 
 void spiflash_fetch() {
     display_pause();
@@ -24,15 +24,20 @@ uint8_t spiflash_getc() {
     return spiflashbuffer[spiflashbuffer_rptr++];
 }
 
-int bad_apple_fetch_and_decompress(uint64_t time) {
-    static const uint64_t speed = 900000; // 8 Mbps = 1 MBps * 90% for margin
-    static const int timePerByte = (64000000 + speed - 1) / speed; // rounded up
+int bad_apple_fetch_and_decompress(uint64_t time, bool reset) {
+    const uint64_t speed = 900000; // 8 Mbps = 1 MBps * 90% for margin
+    const int timePerByte = (64000000 + speed - 1) / speed; // rounded up
     uint16_t byteCount = time / timePerByte;
 
-    static enum lz4_retval lzstatus = LZ4_MOREDATA;
+    static enum lz4_retval lzstatus;
     static uint8_t input;
+    static int first;
+    if (reset) {
+        lzstatus = LZ4_MOREDATA;
+        first = 1;
+        lz4_decompress(0, 0, 1);
+    }
 
-    static int first = 1;
     if (first) {
         input = spiflash_getc();
         byteCount--;
@@ -41,7 +46,7 @@ int bad_apple_fetch_and_decompress(uint64_t time) {
 
     bool dataAdded = 0;
     while (byteCount > 0) {
-        lzstatus = lz4_decompress(input, videobuffer);
+        lzstatus = lz4_decompress(input, videobuffer, 0);
         if (lzstatus == LZ4_MOREDATA) {
             input = spiflash_getc();
             byteCount--;
@@ -55,13 +60,16 @@ int bad_apple_fetch_and_decompress(uint64_t time) {
 }
 
 ringbuffer *bad_apple_init() {
+    spiflashbuffer_rptr = 0;
+    flashAddr = 0;
+
     spiflash_fetch();
     videobuffer = ringbuff_create(10000);
 
     ringbuff_destroy(videobuffer);
     videobuffer = ringbuff_create(10000);
 
-    bad_apple_fetch_and_decompress(64000000);
+    bad_apple_fetch_and_decompress(64000000, 1);
 
     return videobuffer;
 }

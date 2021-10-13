@@ -10,6 +10,5 @@ void rtc_setup() {
 
 	NRF_RTC2->TASKS_CLEAR = 1;
 
-
 	NRF_RTC2->TASKS_START = 1;
 }

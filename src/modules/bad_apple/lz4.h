@@ -8,4 +8,4 @@ enum lz4_retval {
     LZ4_MOREDATA
 };
 
-enum lz4_retval lz4_decompress (uint8_t input, ringbuffer *buff);
+enum lz4_retval lz4_decompress (uint8_t input, ringbuffer *buff, bool reset);

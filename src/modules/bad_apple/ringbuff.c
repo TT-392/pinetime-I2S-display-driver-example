@@ -13,9 +13,12 @@ ringbuffer *ringbuff_create(int size) {
     return ringbuff;
 }
 
+static int maxAddr;
+
 void ringbuff_destroy(ringbuffer *ringbuff) {
     free(ringbuff->buffer);
     free(ringbuff);
+    maxAddr = 0;
 }
 
 // returns 1 when no more data is available, returns -1 if last byte in file (this byte is still a valid byte)
@@ -38,7 +41,6 @@ int ringbuff_getc(uint8_t *byte, ringbuffer *ringbuff) {
 
 // get byte backwards relative to write pointer (1 = last written byte), (0 = undefined behavior)
 uint8_t ringbuff_getc_wrptr(int relative_address, ringbuffer *ringbuff) {
-    static int maxAddr = 0;
     if (relative_address > maxAddr) {
         maxAddr = relative_address;
     }

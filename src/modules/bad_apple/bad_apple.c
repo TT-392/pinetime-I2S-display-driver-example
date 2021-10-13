@@ -27,15 +27,21 @@ struct dataBlock {
     uint8_t* bitmap;
 };
 
+bool reset = 0;
 int bad_apple_getc(ringbuffer* buffer) {
     static bool next_byte_eof = 0;
-    if (next_byte_eof)
+    if (reset)
+        next_byte_eof = 1;
+
+    if (next_byte_eof) {
         return -1;
+        next_byte_eof = 0;
+    }
 
     uint8_t byte;
     int retval = ringbuff_getc(&byte, buffer);
     if (retval == 1) {
-        bad_apple_fetch_and_decompress(18400);
+        bad_apple_fetch_and_decompress(18400, 0);
         ringbuff_getc(&byte, buffer);
     } if (retval == -1) {
         next_byte_eof = 1;
@@ -85,12 +91,14 @@ struct dataBlock readBlock(ringbuffer* buffer) {
 }
 
 
-void wait_for_next_frame() {
-    static int renderedFrames = 0;
+void wait_for_next_frame(bool reset) {
+    static int renderedFrames;
+    if (reset)
+        renderedFrames = 0;
 
     // counter increments at 32768 Hz, beware, will overflow after about 4 minutes.
     while (((uint64_t)NRF_RTC2->COUNTER * 15) / 16384 < renderedFrames)
-        bad_apple_fetch_and_decompress(18400);
+        bad_apple_fetch_and_decompress(18400, 0);
     renderedFrames++;
 }
 
@@ -102,12 +110,14 @@ void render_video() {
     rtc_setup();
 
     ringbuffer *videobuffer = bad_apple_init();
+    bool flipped = 1;
 
+    wait_for_next_frame(1);
 
     while (1) {
         if (NRF_GPIOTE->EVENTS_IN[3]) {
             NRF_GPIOTE->EVENTS_IN[3] = 0;
-            free(videobuffer);
+            ringbuff_destroy(videobuffer);
             flip(1);
             drawSquare(0, 0, 239, 319, 0x0000);
             system_task(start, &main_menu);
@@ -122,14 +132,13 @@ void render_video() {
 
         if (data.staticFrames) {
             for (int i = 0; i < data.staticAmount; i++) {
-                wait_for_next_frame();
+                wait_for_next_frame(0);
             }
         } else {
             if (data.newFrame) {
-                wait_for_next_frame();
+                wait_for_next_frame(0);
             }
 
-            static bool flipped = 1;
             if (data.flipped) {
                 flipped = !flipped;
                 flip(flipped);
@@ -141,4 +150,8 @@ void render_video() {
 
         }
     }
+    free(videobuffer);
+    ringbuff_destroy(videobuffer);
+    drawSquare(0, 0, 239, 319, 0x0000);
+    system_task(start, &main_menu);
 }

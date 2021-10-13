@@ -16,7 +16,7 @@ enum state {
     STATE_COPY_BYTES
 };
 
-enum lz4_retval lz4_decompress (uint8_t input, ringbuffer *buff) {
+enum lz4_retval lz4_decompress (uint8_t input, ringbuffer *buff, bool reset) {
     int inLen = 1;
     static int i = 0;
     static uint32_t blockSize;
@@ -29,6 +29,14 @@ enum lz4_retval lz4_decompress (uint8_t input, ringbuffer *buff) {
     static int offset = 0;
     static int matchLength;
     static uint8_t lastByte;
+
+    if (reset) {
+        i = 0;
+        state = STATE_READHDR;
+        blockInd = 0;
+        offset = 0;
+        return LZ4_MOREDATA;
+    }
 
     int spaceleft;
     bool repeat;
