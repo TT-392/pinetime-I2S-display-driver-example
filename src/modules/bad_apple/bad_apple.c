@@ -34,8 +34,8 @@ int bad_apple_getc(ringbuffer* buffer) {
         next_byte_eof = 1;
 
     if (next_byte_eof) {
-        return -1;
         next_byte_eof = 0;
+        return -1;
     }
 
     uint8_t byte;
@@ -55,14 +55,17 @@ struct dataBlock readBlock(ringbuffer* buffer) {
 
     retval.eof = 0;
 
-    uint8_t c = bad_apple_getc(buffer);
+    uint8_t byte = bad_apple_getc(buffer);
+    uint8_t c = byte;
+
     retval.newFrame = c & 1;
     bool shortCoords = (c >> 2) & 1;
     retval.flipped = (c >> 1) & 1;
     retval.staticFrames = (c >> 3) & 1;
 
     if (retval.staticFrames) {
-        retval.staticAmount = bad_apple_getc(buffer);
+        byte = bad_apple_getc(buffer);
+        retval.staticAmount = byte;
         return retval;
     }
 
@@ -89,7 +92,6 @@ struct dataBlock readBlock(ringbuffer* buffer) {
     
     return retval;
 }
-
 
 void wait_for_next_frame(bool reset) {
     static int renderedFrames;
@@ -152,6 +154,7 @@ void render_video() {
     }
     free(videobuffer);
     ringbuff_destroy(videobuffer);
+    flip(1);
     drawSquare(0, 0, 239, 319, 0x0000);
     system_task(start, &main_menu);
 }

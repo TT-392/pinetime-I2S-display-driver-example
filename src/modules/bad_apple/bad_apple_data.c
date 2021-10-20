@@ -73,4 +73,3 @@ ringbuffer *bad_apple_init() {
 
     return videobuffer;
 }
-

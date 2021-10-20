@@ -18,15 +18,15 @@ enum state {
 
 enum lz4_retval lz4_decompress (uint8_t input, ringbuffer *buff, bool reset) {
     int inLen = 1;
-    static int i = 0;
+    static int i;
     static uint32_t blockSize;
     static bool compressed;
     static enum state state = STATE_READHDR;
     static uint8_t token;
-    static int blockInd = 0;
+    static int blockInd;
     static int literals;
     static uint8_t byte;
-    static int offset = 0;
+    static int offset;
     static int matchLength;
     static uint8_t lastByte;
 
