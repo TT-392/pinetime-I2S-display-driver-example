@@ -11,6 +11,7 @@
 #include "wdt.h"
 #include "display_print.h"
 #include "main_menu.h"
+#include "nrf_delay.h"
 
 struct dataBlock {
     int x1;
@@ -55,7 +56,8 @@ struct dataBlock readBlock(ringbuffer* buffer) {
 
     retval.eof = 0;
 
-    uint8_t byte = bad_apple_getc(buffer);
+    int byte = bad_apple_getc(buffer);
+    if (byte == -1) {retval.eof = 1; return retval;}
     uint8_t c = byte;
 
     retval.newFrame = c & 1;
@@ -65,20 +67,33 @@ struct dataBlock readBlock(ringbuffer* buffer) {
 
     if (retval.staticFrames) {
         byte = bad_apple_getc(buffer);
+        if (byte == -1) {retval.eof = 1; return retval;}
+
         retval.staticAmount = byte;
         return retval;
     }
 
-    retval.x1 = bad_apple_getc(buffer);
-    retval.y1 = bad_apple_getc(buffer);
+    byte = bad_apple_getc(buffer);
+    if (byte == -1) {retval.eof = 1; return retval;}
+    retval.x1 = byte;
+
+    byte = bad_apple_getc(buffer);
+    if (byte == -1) {retval.eof = 1; return retval;}
+    retval.y1 = byte;
 
     if (shortCoords) {
-        c = bad_apple_getc(buffer);
-        retval.x2 = c & 0xf;
-        retval.y2 = (c >> 4) & 0xf;
+        byte = bad_apple_getc(buffer);
+        if (byte == -1) {retval.eof = 1; return retval;}
+        retval.x2 = byte & 0xf;
+        retval.y2 = (byte >> 4) & 0xf;
     } else {
-        retval.x2 = bad_apple_getc(buffer);
-        retval.y2 = bad_apple_getc(buffer);
+        byte = bad_apple_getc(buffer);
+        if (byte == -1) {retval.eof = 1; return retval;}
+        retval.x2 = byte;
+
+        byte = bad_apple_getc(buffer);
+        if (byte == -1) {retval.eof = 1; return retval;}
+        retval.y2 = byte;
     }
 
     int blockSize = ((retval.x2+1) * (retval.y2+1) + 7) / 8; // bytes rounded up
@@ -87,7 +102,9 @@ struct dataBlock readBlock(ringbuffer* buffer) {
     retval.bitmap = BMPAlloc;
 
     for (int i = 0; i < blockSize; i++) {
-        retval.bitmap[i] = bad_apple_getc(buffer);
+        byte = bad_apple_getc(buffer);
+        if (byte == -1) {retval.eof = 1; return retval;}
+        retval.bitmap[i] = byte;
     }
     
     return retval;
@@ -129,8 +146,9 @@ void render_video() {
         wdt_feed();
         struct dataBlock data = readBlock(videobuffer);
 
-        if (data.eof)
+        if (data.eof) {
             break;
+        }
 
         if (data.staticFrames) {
             for (int i = 0; i < data.staticAmount; i++) {
