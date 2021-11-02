@@ -210,6 +210,7 @@ OPT += -flto
 
 # C flags common to all targets
 CFLAGS += $(OPT)
+CFLAGS += $(EXTRAFLAGS)
 CFLAGS += -DAPP_TIMER_V2
 CFLAGS += -DAPP_TIMER_V2_RTC1_ENABLED
 CFLAGS += -DBOARD_PCA10040
