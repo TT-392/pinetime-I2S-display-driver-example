@@ -6,6 +6,8 @@
 #include "nrf_assert.h"
 #include <string.h>
 
+#define PIN_LRCK   (29) // unconnected according to schematic
+
 #define ppi_set() NRF_PPI->CHENSET = 0xff; __disable_irq();// enable first 8 ppi channels
 #define ppi_clr() NRF_PPI->CHENCLR = 0xff; __enable_irq(); // disable first 8 ppi channels
 
@@ -312,9 +314,16 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
     /**/
 
 
+
     NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
     nrf_gpio_pin_write(LCD_COMMAND,1);
 
+    for (int i = 0; i < 7; i++) {
+        nrf_delay_ms(1);
+        nrf_gpio_pin_write(LCD_SCK,1);
+        nrf_delay_ms(1);
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
 
     // Enable transmission
     NRF_I2S->CONFIG.TXEN = (I2S_CONFIG_TXEN_TXEN_ENABLE << I2S_CONFIG_TXEN_TXEN_Pos);
@@ -332,12 +341,99 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
     NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV2 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
 
     // Format = I2S
-    NRF_I2S->CONFIG.FORMAT = I2S_CONFIG_FORMAT_FORMAT_I2S << I2S_CONFIG_FORMAT_FORMAT_Pos;
+    NRF_I2S->CONFIG.FORMAT = 1;
 
     // Use stereo 
     NRF_I2S->CONFIG.CHANNELS = I2S_CONFIG_CHANNELS_CHANNELS_STEREO << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
     
-#define PIN_LRCK   (29) // unconnected according to schematic
+    // Configure pins
+    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos); 
+    NRF_I2S->PSEL.LRCK = (PIN_LRCK << I2S_PSEL_LRCK_PIN_Pos); 
+    NRF_I2S->PSEL.SDOUT = (LCD_MOSI << I2S_PSEL_SDOUT_PIN_Pos);
+    
+    NRF_I2S->ENABLE = 1;
+
+    // Configure data pointer
+    uint8_t byte[4] = {color >> 8, color & 0xff,color >> 8, color & 0xff};
+    NRF_I2S->TXD.PTR = (uint32_t)byte;
+    NRF_I2S->RXTXD.MAXCNT = 1;
+
+    NRF_I2S->TASKS_START = 1;
+
+    int area = (x2-x1+1)*(y2-y1+1);
+
+    for (int i = 0; i < (area + 2) / 2; i++) {
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+        while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+    }
+
+    NRF_I2S->TASKS_STOP = 1;
+    nrf_delay_us(1);
+    NRF_I2S->ENABLE = 0;
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
+
+    cmd_enable(1);
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_delay_ms(1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+}
+
+void drawMono_I2S(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor, uint16_t negColor) {
+    ppi_clr();
+    cmd_enable(0);
+
+    /* setup display for writing */
+    display_send(0, CMD_CASET);
+
+    display_send(1, x1 >> 8);
+    display_send(1, x1 & 0xff);
+
+    display_send(1, x2 >> 8);
+    display_send(1, x2 & 0xff);
+
+    display_send(0, CMD_RASET);
+
+    display_send(1, y1 >> 8);
+    display_send(1, y1 & 0xff);
+
+    display_send(1, y2 >> 8);
+    display_send(1, y2 & 0xff);
+
+    display_send(0, CMD_RAMWR);
+    /**/
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
+    nrf_gpio_pin_write(LCD_COMMAND,1);
+
+    for (int i = 0; i < 7; i++) {
+        nrf_delay_ms(1);
+        nrf_gpio_pin_write(LCD_SCK,1);
+        nrf_delay_ms(1);
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
+
+    // Enable transmission
+    NRF_I2S->CONFIG.TXEN = (I2S_CONFIG_TXEN_TXEN_ENABLE << I2S_CONFIG_TXEN_TXEN_Pos);
+
+    // Ratio = 64 
+    NRF_I2S->CONFIG.RATIO = I2S_CONFIG_RATIO_RATIO_32X << I2S_CONFIG_RATIO_RATIO_Pos;
+
+    // Master mode, 16Bit, left aligned
+    NRF_I2S->CONFIG.MODE = I2S_CONFIG_MODE_MODE_MASTER << I2S_CONFIG_MODE_MODE_Pos;
+    NRF_I2S->CONFIG.SWIDTH = I2S_CONFIG_SWIDTH_SWIDTH_16BIT << I2S_CONFIG_SWIDTH_SWIDTH_Pos;
+    NRF_I2S->CONFIG.ALIGN = I2S_CONFIG_ALIGN_ALIGN_RIGHT << I2S_CONFIG_ALIGN_ALIGN_Pos;
+    // Format = I2S
+    NRF_I2S->CONFIG.FORMAT = 1 << 1;
+
+    NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV2 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
+
+    // Format = I2S
+    NRF_I2S->CONFIG.FORMAT = 1;
+
+    // Use stereo 
+    NRF_I2S->CONFIG.CHANNELS = I2S_CONFIG_CHANNELS_CHANNELS_STEREO << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
+    
 
     // Configure pins
     NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos); 
@@ -348,14 +444,29 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
     NRF_I2S->ENABLE = 1;
 
     // Configure data pointer
-    uint8_t byte[4] = {color >> 8, color & 0xff,color >> 8, color & 0xff};
+    uint8_t byte[0x3fff*2] = {0};
+    
     NRF_I2S->TXD.PTR = (uint32_t)byte;
-    NRF_I2S->RXTXD.MAXCNT = 1;
+    NRF_I2S->RXTXD.MAXCNT = 0x3fff/2;
 
-    // Start transmitting I2S data
     NRF_I2S->TASKS_START = 1;
 
-    nrf_delay_ms(70);
+    int area = (x2-x1+1)*(y2-y1+1);
+
+    for (int i = 0; i < (area + 2) / (2*NRF_I2S->RXTXD.MAXCNT); i++) {
+        for (int pixel = 0; pixel < (0x3fff*2) / 2; pixel++) {
+            if ((frame[(pixel + 3 + 0x3fff * i) / 8] >> (pixel + 3 + 0x3fff * i) % 8) & 1) {
+                byte[pixel*2] = 0x00;
+                byte[pixel*2 + 1] = 0x00;
+            } else {
+                byte[pixel*2] = 0xf8;
+                byte[pixel*2 + 1] = 0x00;
+            }
+        }
+
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+        while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+    }
 
     NRF_I2S->TASKS_STOP = 1;
     nrf_delay_us(1);
