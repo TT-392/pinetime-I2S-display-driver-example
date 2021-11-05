@@ -293,83 +293,143 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
     ppi_clr();
     cmd_enable(0);
 
-    /* setup display for writing */
-    display_send(0, CMD_CASET);
-
-    display_send(1, x1 >> 8);
-    display_send(1, x1 & 0xff);
-
-    display_send(1, x2 >> 8);
-    display_send(1, x2 & 0xff);
-
-    display_send(0, CMD_RASET);
-
-    display_send(1, y1 >> 8);
-    display_send(1, y1 & 0xff);
-
-    display_send(1, y2 >> 8);
-    display_send(1, y2 & 0xff);
-
-    display_send(0, CMD_RAMWR);
-    /**/
-
-
-
     NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
-    nrf_gpio_pin_write(LCD_COMMAND,1);
 
-    for (int i = 0; i < 7; i++) {
-        nrf_delay_ms(1);
-        nrf_gpio_pin_write(LCD_SCK,1);
-        nrf_delay_ms(1);
-        nrf_gpio_pin_write(LCD_SCK,0);
-    }
+#define PIN_SCK    (2)
+#define PIN_LRCK   (29) // unconnected
+#define PIN_SDOUT  (3)
+
+
+
+
+
+    NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV2 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
+
+    NRF_I2S->CONFIG.RATIO = I2S_CONFIG_RATIO_RATIO_32X << I2S_CONFIG_RATIO_RATIO_Pos;
+
 
     // Enable transmission
     NRF_I2S->CONFIG.TXEN = (I2S_CONFIG_TXEN_TXEN_ENABLE << I2S_CONFIG_TXEN_TXEN_Pos);
 
-    // Ratio = 64 
-    NRF_I2S->CONFIG.RATIO = I2S_CONFIG_RATIO_RATIO_32X << I2S_CONFIG_RATIO_RATIO_Pos;
+
 
     // Master mode, 16Bit, left aligned
     NRF_I2S->CONFIG.MODE = I2S_CONFIG_MODE_MODE_MASTER << I2S_CONFIG_MODE_MODE_Pos;
     NRF_I2S->CONFIG.SWIDTH = I2S_CONFIG_SWIDTH_SWIDTH_16BIT << I2S_CONFIG_SWIDTH_SWIDTH_Pos;
-    NRF_I2S->CONFIG.ALIGN = I2S_CONFIG_ALIGN_ALIGN_RIGHT << I2S_CONFIG_ALIGN_ALIGN_Pos;
-    // Format = I2S
-    NRF_I2S->CONFIG.FORMAT = 1 << 1;
-
-    NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV2 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
 
     // Format = I2S
-    NRF_I2S->CONFIG.FORMAT = 1;
+    NRF_I2S->CONFIG.FORMAT = 0;
+
+    NRF_GPIOTE->CONFIG[1] = GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos |
+        GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos |
+        18 << GPIOTE_CONFIG_PSEL_Pos | 
+        GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos;
+
+
+    NRF_GPIOTE->TASKS_SET[1] = 1;
+
+    for (int i = 0; i < 7; i++) {
+        nrf_gpio_pin_write(PIN_SCK,1);
+        __NOP(); // may not be neccesary
+        nrf_gpio_pin_write(PIN_SCK,0);
+    }
+
 
     // Use stereo 
-    NRF_I2S->CONFIG.CHANNELS = I2S_CONFIG_CHANNELS_CHANNELS_STEREO << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
-    
+    NRF_I2S->CONFIG.CHANNELS = 0 << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
+
     // Configure pins
-    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos); 
+    // NRF_I2S->PSEL.MCK = (PIN_MCK << I2S_PSEL_MCK_PIN_Pos);
+    NRF_I2S->PSEL.SCK = (PIN_SCK << I2S_PSEL_SCK_PIN_Pos); 
     NRF_I2S->PSEL.LRCK = (PIN_LRCK << I2S_PSEL_LRCK_PIN_Pos); 
-    NRF_I2S->PSEL.SDOUT = (LCD_MOSI << I2S_PSEL_SDOUT_PIN_Pos);
-    
+    NRF_I2S->PSEL.SDOUT = (PIN_SDOUT << I2S_PSEL_SDOUT_PIN_Pos);
+
+
+
     NRF_I2S->ENABLE = 1;
 
+    x1 = 0;
+    y1 = 0;
+    x2 = 1;
+    y2 = 1;
+        
     // Configure data pointer
-    uint8_t byte[4] = {color >> 8, color & 0xff,color >> 8, color & 0xff};
-    NRF_I2S->TXD.PTR = (uint32_t)byte;
+    uint8_t CASET[4] = {0x00, 0x00, 0x00, CMD_CASET};
+    uint8_t coords1[4] = {0, 0, 0, 1};
+    
+    uint8_t RASET[4] = {0x00, 0x00, 0x00, CMD_RASET};
+    uint8_t coords2[4] = {0, 0, 0, 1};
+
+    uint8_t RAMWR[4] = {0x00, 0x00, 0xff, CMD_RAMWR};
+    uint8_t frame[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
     NRF_I2S->RXTXD.MAXCNT = 1;
+
+
+    // Start transmitting I2S data
+
+
+    NRF_PPI->CH[0].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[0].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
+    NRF_PPI->CH[1].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[1].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+    NRF_PPI->CH[2].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_CLR[1];
+    //  NRF_PPI->CHENSET = 1 << 0;
+    NRF_PPI->CHENSET = 1 << 1;
+ //   NRF_PPI->CHENSET = 2 << 1;
+
+    //NRF_I2S->EVENTS_TXPTRUPD = 0;
+    //while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+    //
+    //NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV125 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
+
+    // Since we are not updating the TXD pointer, the sine wave will play over and over again.
+    // The TXD pointer can be updated after the EVENTS_TXPTRUPD arrives.
+
+    NRF_I2S->TXD.PTR = (uint32_t)CASET;
 
     NRF_I2S->TASKS_START = 1;
 
-    int area = (x2-x1+1)*(y2-y1+1);
+    NRF_I2S->TXD.PTR = (uint32_t)coords1;
 
-    for (int i = 0; i < (area + 2) / 2; i++) {
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+
+    NRF_I2S->TXD.PTR = (uint32_t)RASET;
+
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+
+    NRF_I2S->TXD.PTR = (uint32_t)coords2;
+
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+
+    NRF_I2S->TXD.PTR = (uint32_t)RAMWR;
+
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+
+    NRF_I2S->TXD.PTR = (uint32_t)frame;
+    NRF_I2S->RXTXD.MAXCNT = 1;
+    
+    for (int i = 0; i < 3; i++) {
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+        while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+    }
+    NRF_PPI->CHENCLR = 1 << 1;
+
+    for (int i = 0; i < 3; i++) {
         NRF_I2S->EVENTS_TXPTRUPD = 0;
         while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
     }
 
     NRF_I2S->TASKS_STOP = 1;
-    nrf_delay_us(1);
-    NRF_I2S->ENABLE = 0;
+
+    
+
+
 
     NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
 
@@ -483,66 +543,42 @@ void drawMono_I2S(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posCo
 
 
 void drawBitmap (uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap) {
-    ppi_set();
-
-    int maxLength = 254; 
-    uint8_t byteArray[maxLength];
+    ppi_clr();
+    cmd_enable(0);
 
     /* setup display for writing */
-    byteArray[0] = CMD_CASET;
+    display_send(0, CMD_CASET);
 
-    byteArray[1] = x1 >> 8;
-    byteArray[2] = x1 & 0xff;
+    display_send(1, x1 >> 8);
+    display_send(1, x1 & 0xff);
 
-    byteArray[3] = x2 >> 8;
-    byteArray[4] = x2 & 0xff;
+    display_send(1, x2 >> 8);
+    display_send(1, x2 & 0xff);
 
-    byteArray[5] = CMD_RASET;
+    display_send(0, CMD_RASET);
 
-    byteArray[6] = y1 >> 8;
-    byteArray[7] = y1 & 0xff;
+    display_send(1, y1 >> 8);
+    display_send(1, y1 & 0xff);
 
-    byteArray[8] = y2 >> 8;
-    byteArray[9] = y2 & 0xff;
+    display_send(1, y2 >> 8);
+    display_send(1, y2 & 0xff);
 
-    byteArray[10] = CMD_RAMWR;
+    display_send(0, CMD_RAMWR);
     /**/
 
-
-    int areaToWrite;
     int area = (x2-x1+1)*(y2-y1+1);
+    int pixel = 0;
 
-    if (area > maxLength / 2 - 11)
-        areaToWrite = maxLength / 2 - 11;
-    else 
-        areaToWrite = area;
+    while (pixel != area) {
+        display_send(1, bitmap[pixel*2]);
+        display_send(1, bitmap[pixel*2 + 1]);
+        
+        pixel++;
 
-
-    for (int i = 0; i < areaToWrite; i++) {
-        byteArray[i*2 + 11] = bitmap[i*2];
-        byteArray[i*2+1 + 11] = bitmap[i*2+1];
     }
-
-    area -= areaToWrite;
-
-    display_sendbuffer(0, byteArray, (areaToWrite * 2)+11);
 
     ppi_clr();
-
-    int offset = 0;
-
-    while (area > 0) {
-        offset += areaToWrite*2;
-
-        if (area > maxLength / 2)
-            areaToWrite = maxLength / 2;
-        else 
-            areaToWrite = area;
-
-        display_sendbuffer(0, bitmap+offset, areaToWrite * 2);
-        ppi_clr();
-        area -= areaToWrite;
-    }
+    cmd_enable(1);
 }
 
 void drawMono(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor, uint16_t negColor) {
