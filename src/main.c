@@ -22,10 +22,15 @@ int main(void) {
     system_task(start, &display);
     display_backlight(255);
 
-    drawSquare(0, 0, 239, 239, 0x0000);
-    drawSquare_I2S(0, 0, 239, 239, 0xf800);
-    drawMono(0, 0, 239, 239, frame, 0x0000, 0xffff);
-    drawMono_I2S(0, 0, 239, 239, frame, 0x0000, 0xffff);
+    while(1){
+        drawSquare_I2S(0, 0, 239, 239, 0x0000);
+        drawSquare_I2S(0, 0, 239, 239, 0xf800);
+        drawSquare_I2S(0, 0, 239, 239, 0x001f);
+        drawSquare_I2S(0, 0, 239, 239, 0x07e0);
+        //drawSquare_I2S(0, 0, 239, 239, 0xffff);
+    }
+    //drawMono(0, 0, 239, 239, frame, 0x0000, 0xffff);
+    //drawMono_I2S(0, 0, 239, 239, frame, 0x0000, 0xffff);
     while(1);
     /*
     while(1);

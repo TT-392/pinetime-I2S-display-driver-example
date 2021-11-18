@@ -35,6 +35,7 @@ SRC_FILES += \
   $(PROJ_DIR)/drivers/touch.c \
   $(PROJ_DIR)/drivers/audio.c \
   $(PROJ_DIR)/drivers/i2c.c \
+  $(PROJ_DIR)/drivers/i2s.c \
   $(PROJ_DIR)/drivers/flash.c \
   $(PROJ_DIR)/modules/breakout.c \
   $(PROJ_DIR)/modules/main_menu.c \
@@ -296,7 +297,7 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 flash: default
 	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex --sectorerase
-	nrfjprog -f nrf52 --reset
+	scope_ctrl reset
 
 # Flash softdevice
 flash_softdevice:

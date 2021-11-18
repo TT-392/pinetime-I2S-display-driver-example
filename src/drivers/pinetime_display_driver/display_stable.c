@@ -3,6 +3,7 @@
 #include "nrf_delay.h"
 #include "display_defines.h"
 #include "display.h"
+#include "i2s.h"
 #include "nrf_assert.h"
 #include <string.h>
 
@@ -292,143 +293,42 @@ void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t col
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
     ppi_clr();
     cmd_enable(0);
-
     NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
 
-#define PIN_SCK    (2)
-#define PIN_LRCK   (29) // unconnected
-#define PIN_SDOUT  (3)
+    I2S_init();
 
+    uint8_t CASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_CASET};
+    uint8_t coords1[8] = {x1 >> 8, x1 & 0xff, x2 >> 8, x2 & 0xff, 0x00, 0x00, 0x00, 0x00};
+    
+    uint8_t RASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RASET};
+    uint8_t coords2[8] = {y1 >> 8, y1 & 0xff, y2 >> 8, y2 & 0xff, 0x00, 0x00, 0x00, 0x00};
 
+    uint8_t RAMWR[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RAMWR};
+    uint8_t FRAME[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-
-
-    NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV2 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
-
-    NRF_I2S->CONFIG.RATIO = I2S_CONFIG_RATIO_RATIO_32X << I2S_CONFIG_RATIO_RATIO_Pos;
-
-
-    // Enable transmission
-    NRF_I2S->CONFIG.TXEN = (I2S_CONFIG_TXEN_TXEN_ENABLE << I2S_CONFIG_TXEN_TXEN_Pos);
-
-
-
-    // Master mode, 16Bit, left aligned
-    NRF_I2S->CONFIG.MODE = I2S_CONFIG_MODE_MODE_MASTER << I2S_CONFIG_MODE_MODE_Pos;
-    NRF_I2S->CONFIG.SWIDTH = I2S_CONFIG_SWIDTH_SWIDTH_16BIT << I2S_CONFIG_SWIDTH_SWIDTH_Pos;
-
-    // Format = I2S
-    NRF_I2S->CONFIG.FORMAT = 0;
-
-    NRF_GPIOTE->CONFIG[1] = GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos |
-        GPIOTE_CONFIG_POLARITY_Toggle << GPIOTE_CONFIG_POLARITY_Pos |
-        18 << GPIOTE_CONFIG_PSEL_Pos | 
-        GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos;
-
-
-    NRF_GPIOTE->TASKS_SET[1] = 1;
-
-    for (int i = 0; i < 7; i++) {
-        nrf_gpio_pin_write(PIN_SCK,1);
-        __NOP(); // may not be neccesary
-        nrf_gpio_pin_write(PIN_SCK,0);
+    uint8_t colorBuff[256];
+    for (int i = 0; i < 128; i++) {
+        colorBuff[i*2] = color >> 8;
+        colorBuff[i*2 + 1] = color & 0xff;
     }
 
+    int area = (x2-x1+1)*(y2-y1+1);
 
-    // Use stereo 
-    NRF_I2S->CONFIG.CHANNELS = 0 << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
+    I2S_add_data(CASET, 2, D_CMD);
+    I2S_add_data(coords1, 2, D_DAT);
+    I2S_add_data(RASET, 2, D_CMD);
+    I2S_add_data(coords2, 2, D_DAT);
+    I2S_add_data(RAMWR, 2, D_CMD);
+    I2S_add_data(colorBuff, 64, D_DAT);
+    I2S_start();
 
-    // Configure pins
-    // NRF_I2S->PSEL.MCK = (PIN_MCK << I2S_PSEL_MCK_PIN_Pos);
-    NRF_I2S->PSEL.SCK = (PIN_SCK << I2S_PSEL_SCK_PIN_Pos); 
-    NRF_I2S->PSEL.LRCK = (PIN_LRCK << I2S_PSEL_LRCK_PIN_Pos); 
-    NRF_I2S->PSEL.SDOUT = (PIN_SDOUT << I2S_PSEL_SDOUT_PIN_Pos);
-
-
-
-    NRF_I2S->ENABLE = 1;
-
-    x1 = 0;
-    y1 = 0;
-    x2 = 1;
-    y2 = 1;
-        
-    // Configure data pointer
-    uint8_t CASET[4] = {0x00, 0x00, 0x00, CMD_CASET};
-    uint8_t coords1[4] = {0, 0, 0, 1};
-    
-    uint8_t RASET[4] = {0x00, 0x00, 0x00, CMD_RASET};
-    uint8_t coords2[4] = {0, 0, 0, 1};
-
-    uint8_t RAMWR[4] = {0x00, 0x00, 0xff, CMD_RAMWR};
-    uint8_t frame[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
-    NRF_I2S->RXTXD.MAXCNT = 1;
-
-
-    // Start transmitting I2S data
-
-
-    NRF_PPI->CH[0].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[0].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
-    NRF_PPI->CH[1].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[1].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
-    NRF_PPI->CH[2].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_CLR[1];
-    //  NRF_PPI->CHENSET = 1 << 0;
-    NRF_PPI->CHENSET = 1 << 1;
- //   NRF_PPI->CHENSET = 2 << 1;
-
-    //NRF_I2S->EVENTS_TXPTRUPD = 0;
-    //while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
-    //
-    //NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV125 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
-
-    // Since we are not updating the TXD pointer, the sine wave will play over and over again.
-    // The TXD pointer can be updated after the EVENTS_TXPTRUPD arrives.
-
-    NRF_I2S->TXD.PTR = (uint32_t)CASET;
-
-    NRF_I2S->TASKS_START = 1;
-
-    NRF_I2S->TXD.PTR = (uint32_t)coords1;
-
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
-
-    NRF_I2S->TXD.PTR = (uint32_t)RASET;
-
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
-
-    NRF_I2S->TXD.PTR = (uint32_t)coords2;
-
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
-
-    NRF_I2S->TXD.PTR = (uint32_t)RAMWR;
-
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-    while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
-
-    NRF_I2S->TXD.PTR = (uint32_t)frame;
-    NRF_I2S->RXTXD.MAXCNT = 1;
-    
-    for (int i = 0; i < 3; i++) {
-        NRF_I2S->EVENTS_TXPTRUPD = 0;
-        while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+    for (int i = 0; i < area / 128; i++) {
+        I2S_add_data(colorBuff, 64, D_DAT);
+        while (I2S_cleanup() > 128);
     }
-    NRF_PPI->CHENCLR = 1 << 1;
+    I2S_add_end();
 
-    for (int i = 0; i < 3; i++) {
-        NRF_I2S->EVENTS_TXPTRUPD = 0;
-        while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
-    }
-
-    NRF_I2S->TASKS_STOP = 1;
-
-    
-
+    I2S_reset();
 
 
     NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
