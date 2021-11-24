@@ -18,7 +18,7 @@ void digitalWatch_init();
 void digitalWatch_run();
 void digitalWatch_stop();
 
-static dependency dependencies[] = {{&display, running}, {&touch, running}, {&statusbar, stopped}};
+static dependency dependencies[] = {{&display, running}, {&touch, running}, {&statusbar, running}};
 static task tasks[] = {{&digitalWatch_init, start, 3, dependencies}, {&digitalWatch_run, run, 0}, {&digitalWatch_stop, stop, 0}};
 
 process watchface = {

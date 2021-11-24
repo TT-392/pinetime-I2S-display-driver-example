@@ -4,6 +4,9 @@
 #include "clock_pine.h"
 #include "display.h"
 #include "system.h"
+#include "power_manager.h"
+#include "display_print.h"
+#include <stdlib.h>
 
 void statusbar_run();
 void statusbar_init() {statusbar_run();}
@@ -24,6 +27,10 @@ void statusbar_run() {
         color = 0x67EC;
     battery_draw_percent(200,0,color,0x0000);
     drawDate(0,0,"%H:%M:%S");
+
+    char buffer[30];
+    sprintf(buffer, "%i %i %i  ", power_manager_get_current_count(), power_manager_get_current_timeout(), power_manager_get_current_dummyCount() % 1000);
+    drawString(100, 0, buffer, 0xffe0, 0x0000);
 }
 
 void statusbar_stop() {

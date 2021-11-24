@@ -49,6 +49,19 @@ void set_system_timeout(int timeoutInTenthsOfSeconds) {
     counter = 0;
 }
 
+int power_manager_get_current_count() {
+    return timeout;
+}
+
+int power_manager_get_current_timeout() {
+    return counter;
+}
+
+static int dummyCount = 0;
+int power_manager_get_current_dummyCount() {
+    return dummyCount;
+}
+
 void power_manager_init() {
     power_manager.trigger = create_time_event(10);
 }
@@ -60,6 +73,8 @@ void power_manager_stop() {
 void power_manager_run() {
     struct touchPoints touchPoint;
     touch_refresh(&touchPoint);
+
+    dummyCount++;
 
     if (touchPoint.event) {
         counter = 0;
