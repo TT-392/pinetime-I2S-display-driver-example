@@ -290,6 +290,50 @@ void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t col
     cmd_enable(1);
 }
 
+void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap) {
+    ppi_clr();
+    cmd_enable(0);
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
+
+    I2S_init();
+
+    uint8_t CASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_CASET};
+    uint8_t coords1[8] = {x1 >> 8, x1 & 0xff, x2 >> 8, x2 & 0xff, 0x00, 0x00, 0x00, 0x00};
+    
+    uint8_t RASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RASET};
+    uint8_t coords2[8] = {y1 >> 8, y1 & 0xff, y2 >> 8, y2 & 0xff, 0x00, 0x00, 0x00, 0x00};
+
+    uint8_t RAMWR[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RAMWR};
+    uint8_t FRAME[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+    int area = (x2-x1+1)*(y2-y1+1);
+
+    I2S_add_data(CASET, 2, D_CMD);
+    I2S_add_data(coords1, 2, D_DAT);
+    I2S_add_data(RASET, 2, D_CMD);
+    I2S_add_data(coords2, 2, D_DAT);
+    I2S_add_data(RAMWR, 2, D_CMD);
+    I2S_add_data(bitmap, 64, D_DAT);
+    I2S_start();
+
+    for (int i = 1; i < area / 128; i++) {
+        I2S_add_data(bitmap + (i) * 256, 64, D_DAT);
+        while (I2S_cleanup() > 128);
+    }
+
+    I2S_add_end();
+
+    I2S_reset();
+
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
+
+    cmd_enable(1);
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_delay_ms(1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+}
+
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
     ppi_clr();
     cmd_enable(0);
