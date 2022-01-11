@@ -3,8 +3,11 @@
 #include "nrf_delay.h"
 #include "display_defines.h"
 #include "display.h"
+#include "i2s.h"
 #include "nrf_assert.h"
 #include <string.h>
+
+#define PIN_LRCK   (29) // unconnected according to schematic
 
 #define ppi_set() NRF_PPI->CHENSET = 0xff; __disable_irq();// enable first 8 ppi channels
 #define ppi_clr() NRF_PPI->CHENCLR = 0xff; __enable_irq(); // disable first 8 ppi channels
@@ -13,6 +16,15 @@
 #define COLOR_16bit 0x05
 #define COLOR_12bit 0x03
 static uint8_t colorMode = COLOR_16bit;
+void display_init();
+
+static task tasks[] = {{&display_init, start, 0}};
+
+process display = {
+    .taskCnt = 1,
+    .tasks = tasks
+};
+
 
 // placeholder for actual brightness control see https://forum.pine64.org/showthread.php?tid=9378, pwm is planned
 void display_backlight(char brightness) {
@@ -278,68 +290,239 @@ void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t col
     cmd_enable(1);
 }
 
+void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap) {
+    ppi_clr();
+    cmd_enable(0);
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
 
-void drawBitmap (uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap) {
-    ppi_set();
+    I2S_init();
 
-    int maxLength = 254; 
-    uint8_t byteArray[maxLength];
+    uint8_t CASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_CASET};
+    uint8_t coords1[8] = {x1 >> 8, x1 & 0xff, x2 >> 8, x2 & 0xff, 0x00, 0x00, 0x00, 0x00};
+    
+    uint8_t RASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RASET};
+    uint8_t coords2[8] = {y1 >> 8, y1 & 0xff, y2 >> 8, y2 & 0xff, 0x00, 0x00, 0x00, 0x00};
 
-    /* setup display for writing */
-    byteArray[0] = CMD_CASET;
+    uint8_t RAMWR[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RAMWR};
+    uint8_t FRAME[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-    byteArray[1] = x1 >> 8;
-    byteArray[2] = x1 & 0xff;
-
-    byteArray[3] = x2 >> 8;
-    byteArray[4] = x2 & 0xff;
-
-    byteArray[5] = CMD_RASET;
-
-    byteArray[6] = y1 >> 8;
-    byteArray[7] = y1 & 0xff;
-
-    byteArray[8] = y2 >> 8;
-    byteArray[9] = y2 & 0xff;
-
-    byteArray[10] = CMD_RAMWR;
-    /**/
-
-
-    int areaToWrite;
     int area = (x2-x1+1)*(y2-y1+1);
 
-    if (area > maxLength / 2 - 11)
-        areaToWrite = maxLength / 2 - 11;
-    else 
-        areaToWrite = area;
+    I2S_add_data(CASET, 2, D_CMD);
+    I2S_add_data(coords1, 2, D_DAT);
+    I2S_add_data(RASET, 2, D_CMD);
+    I2S_add_data(coords2, 2, D_DAT);
+    I2S_add_data(RAMWR, 2, D_CMD);
+    I2S_add_data(bitmap, 64, D_DAT);
+    I2S_start();
 
-
-    for (int i = 0; i < areaToWrite; i++) {
-        byteArray[i*2 + 11] = bitmap[i*2];
-        byteArray[i*2+1 + 11] = bitmap[i*2+1];
+    for (int i = 1; i < area / 128; i++) {
+        I2S_add_data(bitmap + (i) * 256, 64, D_DAT);
+        while (I2S_cleanup() > 128);
     }
 
-    area -= areaToWrite;
+    I2S_add_end();
 
-    display_sendbuffer(0, byteArray, (areaToWrite * 2)+11);
+    I2S_reset();
+
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
+
+    cmd_enable(1);
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_delay_ms(1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+}
+
+void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
+    ppi_clr();
+    cmd_enable(0);
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
+
+    I2S_init();
+
+    uint8_t CASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_CASET};
+    uint8_t coords1[8] = {x1 >> 8, x1 & 0xff, x2 >> 8, x2 & 0xff, 0x00, 0x00, 0x00, 0x00};
+    
+    uint8_t RASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RASET};
+    uint8_t coords2[8] = {y1 >> 8, y1 & 0xff, y2 >> 8, y2 & 0xff, 0x00, 0x00, 0x00, 0x00};
+
+    uint8_t RAMWR[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_RAMWR};
+    uint8_t FRAME[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+    uint8_t colorBuff[256];
+    for (int i = 0; i < 128; i++) {
+        colorBuff[i*2] = color >> 8;
+        colorBuff[i*2 + 1] = color & 0xff;
+    }
+
+    int area = (x2-x1+1)*(y2-y1+1);
+
+    I2S_add_data(CASET, 2, D_CMD);
+    I2S_add_data(coords1, 2, D_DAT);
+    I2S_add_data(RASET, 2, D_CMD);
+    I2S_add_data(coords2, 2, D_DAT);
+    I2S_add_data(RAMWR, 2, D_CMD);
+    I2S_add_data(colorBuff, 64, D_DAT);
+    I2S_start();
+
+    for (int i = 0; i < area / 128; i++) {
+        I2S_add_data(colorBuff, 64, D_DAT);
+        while (I2S_cleanup() > 128);
+    }
+    I2S_add_end();
+
+    I2S_reset();
+
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
+
+    cmd_enable(1);
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_delay_ms(1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+}
+
+void drawMono_I2S(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor, uint16_t negColor) {
+    ppi_clr();
+    cmd_enable(0);
+
+    /* setup display for writing */
+    display_send(0, CMD_CASET);
+
+    display_send(1, x1 >> 8);
+    display_send(1, x1 & 0xff);
+
+    display_send(1, x2 >> 8);
+    display_send(1, x2 & 0xff);
+
+    display_send(0, CMD_RASET);
+
+    display_send(1, y1 >> 8);
+    display_send(1, y1 & 0xff);
+
+    display_send(1, y2 >> 8);
+    display_send(1, y2 & 0xff);
+
+    display_send(0, CMD_RAMWR);
+    /**/
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Disabled << SPIM_ENABLE_ENABLE_Pos;
+    nrf_gpio_pin_write(LCD_COMMAND,1);
+
+    for (int i = 0; i < 7; i++) {
+        nrf_delay_ms(1);
+        nrf_gpio_pin_write(LCD_SCK,1);
+        nrf_delay_ms(1);
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
+
+    // Enable transmission
+    NRF_I2S->CONFIG.TXEN = (I2S_CONFIG_TXEN_TXEN_ENABLE << I2S_CONFIG_TXEN_TXEN_Pos);
+
+    // Ratio = 64 
+    NRF_I2S->CONFIG.RATIO = I2S_CONFIG_RATIO_RATIO_32X << I2S_CONFIG_RATIO_RATIO_Pos;
+
+    // Master mode, 16Bit, left aligned
+    NRF_I2S->CONFIG.MODE = I2S_CONFIG_MODE_MODE_MASTER << I2S_CONFIG_MODE_MODE_Pos;
+    NRF_I2S->CONFIG.SWIDTH = I2S_CONFIG_SWIDTH_SWIDTH_16BIT << I2S_CONFIG_SWIDTH_SWIDTH_Pos;
+    NRF_I2S->CONFIG.ALIGN = I2S_CONFIG_ALIGN_ALIGN_RIGHT << I2S_CONFIG_ALIGN_ALIGN_Pos;
+    // Format = I2S
+    NRF_I2S->CONFIG.FORMAT = 1 << 1;
+
+    NRF_I2S->CONFIG.MCKFREQ = I2S_CONFIG_MCKFREQ_MCKFREQ_32MDIV2 << I2S_CONFIG_MCKFREQ_MCKFREQ_Pos;
+
+    // Format = I2S
+    NRF_I2S->CONFIG.FORMAT = 1;
+
+    // Use stereo 
+    NRF_I2S->CONFIG.CHANNELS = I2S_CONFIG_CHANNELS_CHANNELS_STEREO << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
+    
+
+    // Configure pins
+    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos); 
+    NRF_I2S->PSEL.LRCK = (PIN_LRCK << I2S_PSEL_LRCK_PIN_Pos); 
+    NRF_I2S->PSEL.SDOUT = (LCD_MOSI << I2S_PSEL_SDOUT_PIN_Pos);
+    
+  
+    NRF_I2S->ENABLE = 1;
+
+    // Configure data pointer
+    uint8_t byte[0x3fff*2] = {0};
+    
+    NRF_I2S->TXD.PTR = (uint32_t)byte;
+    NRF_I2S->RXTXD.MAXCNT = 0x3fff/2;
+
+    NRF_I2S->TASKS_START = 1;
+
+    int area = (x2-x1+1)*(y2-y1+1);
+
+    for (int i = 0; i < (area + 2) / (2*NRF_I2S->RXTXD.MAXCNT); i++) {
+        for (int pixel = 0; pixel < (0x3fff*2) / 2; pixel++) {
+            if ((frame[(pixel + 3 + 0x3fff * i) / 8] >> (pixel + 3 + 0x3fff * i) % 8) & 1) {
+                byte[pixel*2] = 0x00;
+                byte[pixel*2 + 1] = 0x00;
+            } else {
+                byte[pixel*2] = 0xf8;
+                byte[pixel*2 + 1] = 0x00;
+            }
+        }
+
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+        while (!NRF_I2S->EVENTS_TXPTRUPD) __NOP();
+    }
+
+    NRF_I2S->TASKS_STOP = 1;
+    nrf_delay_us(1);
+    NRF_I2S->ENABLE = 0;
+
+    NRF_SPIM0->ENABLE = SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos;
+
+    cmd_enable(1);
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_delay_ms(1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+}
+
+
+
+void drawBitmap (uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap) {
+    ppi_clr();
+    cmd_enable(0);
+
+    /* setup display for writing */
+    display_send(0, CMD_CASET);
+
+    display_send(1, x1 >> 8);
+    display_send(1, x1 & 0xff);
+
+    display_send(1, x2 >> 8);
+    display_send(1, x2 & 0xff);
+
+    display_send(0, CMD_RASET);
+
+    display_send(1, y1 >> 8);
+    display_send(1, y1 & 0xff);
+
+    display_send(1, y2 >> 8);
+    display_send(1, y2 & 0xff);
+
+    display_send(0, CMD_RAMWR);
+    /**/
+
+    int area = (x2-x1+1)*(y2-y1+1);
+    int pixel = 0;
+
+    while (pixel != area) {
+        display_send(1, bitmap[pixel*2]);
+        display_send(1, bitmap[pixel*2 + 1]);
+        
+        pixel++;
+
+    }
 
     ppi_clr();
-
-    int offset = 0;
-
-    while (area > 0) {
-        offset += areaToWrite*2;
-
-        if (area > maxLength / 2)
-            areaToWrite = maxLength / 2;
-        else 
-            areaToWrite = area;
-
-        display_sendbuffer(0, bitmap+offset, areaToWrite * 2);
-        ppi_clr();
-        area -= areaToWrite;
-    }
+    cmd_enable(1);
 }
 
 void drawMono(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor, uint16_t negColor) {
