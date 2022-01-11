@@ -19,8 +19,8 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
-  $(PROJ_DIR)/drivers/pinetime_display_driver/display.c \
   $(PROJ_DIR)/drivers/i2s.c \
+  $(PROJ_DIR)/drivers/display.c \
   $(PROJ_DIR)/main.c \
 
 # Include folders common to all targets
@@ -157,11 +157,8 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/stack_guard \
   $(SDK_ROOT)/components/libraries/log/src \
   $(PROJ_DIR)/external/nordic \
-  $(PROJ_DIR)/drivers/pinetime_display_driver\
   $(PROJ_DIR)/\
   $(PROJ_DIR)/drivers\
-  $(PROJ_DIR)/resources\
-  $(PROJ_DIR)/resources/icons\
 
 # Libraries common to all targets
 LIB_FILES += \
