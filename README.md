@@ -1,5 +1,5 @@
-# TT-time
-This is the start of a project for the PineTime. Some day it might be a nice usable smartwatch OS, but right now, it is starting to look more and more like a fancy tech demo.
+# pinetime I2S display driver example
+An example implementation of using the I2S driver to drive the pinetime's display
 
 ## Compiling  
 (this part needs some work)  
