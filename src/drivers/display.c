@@ -144,11 +144,6 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t*
     I2S_add_end();
 
     I2S_reset();
-
-
-    nrf_gpio_pin_write(LCD_SELECT,1);
-    nrf_delay_ms(1);
-    nrf_gpio_pin_write(LCD_SELECT,0);
 }
 
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
@@ -184,10 +179,4 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
     I2S_add_end();
 
     I2S_reset();
-
-
-
-    nrf_gpio_pin_write(LCD_SELECT,1);
-    nrf_delay_ms(1);
-    nrf_gpio_pin_write(LCD_SELECT,0);
 }

@@ -32,7 +32,6 @@ int main(void) {
         drawSquare_I2S(0, 0, 239, 239, 0xf800);
         drawSquare_I2S(0, 0, 239, 239, 0x001f);
         drawSquare_I2S(0, 0, 239, 239, 0x07e0);
-        //drawSquare_I2S(0, 0, 239, 239, 0xffff);
     }
     while(1);
 }

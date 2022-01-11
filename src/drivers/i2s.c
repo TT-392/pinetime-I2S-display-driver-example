@@ -113,7 +113,11 @@ void I2S_reset() {
     active_transfer = NULL;
     newest_transfer = NULL;
     NRF_I2S->ENABLE = 1;
-    // TODO: don't forget CS reset
+
+    // the amount of bits send by the I2S driver isn't a multiple of 8 (It has some trailing bits), so we have to trigger the CS pin to reset the bit count on the display
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_delay_ms(1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
 }
 
 int I2S_cleanup() {
