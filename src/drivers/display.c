@@ -58,6 +58,8 @@ void display_init() {
     nrf_gpio_pin_write(LCD_COMMAND,1);
     nrf_gpio_pin_write(LCD_RESET,1);
 
+    nrf_gpio_cfg_output(LCD_COMMAND);
+
 
     ////////////////
     // SPIM setup //
@@ -98,17 +100,6 @@ void display_init() {
     display_send (0, CMD_NORON);
     display_send (0, CMD_DISPON);
 
-
-
-    ///////////////////////////
-    // setup LCD_COMMAND PIN //
-    ///////////////////////////
-    nrf_gpio_cfg_output(LCD_COMMAND);
-
-
-    NRF_TIMER3->MODE = 0 << TIMER_MODE_MODE_Pos; // timer mode
-    NRF_TIMER3->BITMODE = 0 << TIMER_BITMODE_BITMODE_Pos; // 16 bit
-    NRF_TIMER3->PRESCALER = 0 << TIMER_PRESCALER_PRESCALER_Pos; // 16 MHz
 
 
     // disable SPIM and start I2S

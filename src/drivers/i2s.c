@@ -95,7 +95,7 @@ void I2S_add_data_to_ll(const uint8_t* data, int sizeDiv4, enum display_byte_typ
     used_mem_div4 += sizeDiv4;
 }
 
-void I2S_add_data(const uint8_t* data, int sizeDiv4, enum display_byte_type type) { // sizeDiv4 can't be 1 or 3
+void I2S_add_data(const uint8_t* data, int sizeDiv4, enum display_byte_type type) { // sizeDiv4 has to be > 1
     if (sizeDiv4 >= 2)
         I2S_add_data_to_ll(data, 2, type);
     if (sizeDiv4 >= 3)
@@ -105,7 +105,6 @@ void I2S_add_data(const uint8_t* data, int sizeDiv4, enum display_byte_type type
 void I2S_add_end() {
     uint8_t dummy[12] = {0};
     I2S_add_data(dummy, 3, D_END);
-
 }
 
 void I2S_reset() {
