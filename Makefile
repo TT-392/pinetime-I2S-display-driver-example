@@ -19,42 +19,13 @@ $(OUTPUT_DIRECTORY)/nrf52832_xxaa.out: \
 SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
-  $(PROJ_DIR)/external/timecake/clock_pine.c \
-  $(PROJ_DIR)/external/timecake/battery_pine.c \
-  $(PROJ_DIR)/utils/wdt.c \
-  $(PROJ_DIR)/utils/compile_info.c \
-  $(PROJ_DIR)/utils/semihost.c \
-  $(PROJ_DIR)/utils/systick.c \
-  $(PROJ_DIR)/utils/display_print.c \
-  $(PROJ_DIR)/utils/calctime.c \
-  $(PROJ_DIR)/utils/uart.c \
-  $(PROJ_DIR)/utils/battery.c \
-  $(PROJ_DIR)/utils/date.c \
-  $(PROJ_DIR)/utils/geometry.c \
   $(PROJ_DIR)/drivers/pinetime_display_driver/display.c \
-  $(PROJ_DIR)/drivers/touch.c \
   $(PROJ_DIR)/drivers/audio.c \
   $(PROJ_DIR)/drivers/i2c.c \
   $(PROJ_DIR)/drivers/i2s.c \
   $(PROJ_DIR)/drivers/flash.c \
-  $(PROJ_DIR)/modules/breakout.c \
-  $(PROJ_DIR)/modules/main_menu.c \
-  $(PROJ_DIR)/modules/scrollMenu.c \
-  $(PROJ_DIR)/modules/statusbar.c \
   $(PROJ_DIR)/events/time_event_handler.c \
-  $(PROJ_DIR)/system.c \
-  $(PROJ_DIR)/modules/watchface.c \
   $(PROJ_DIR)/main.c \
-  $(PROJ_DIR)/modules/steamLocomotive.c \
-  $(PROJ_DIR)/modules/date_adjust.c \
-  $(PROJ_DIR)/modules/settings.c \
-  $(PROJ_DIR)/modules/info.c \
-  $(PROJ_DIR)/modules/power_manager.c \
-  $(PROJ_DIR)/modules/bad_apple/bad_apple.c \
-  $(PROJ_DIR)/modules/bad_apple/bad_apple_data.c \
-  $(PROJ_DIR)/modules/bad_apple/lz4.c \
-  $(PROJ_DIR)/modules/bad_apple/rtc.c \
-  $(PROJ_DIR)/modules/bad_apple/ringbuff.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
@@ -190,11 +161,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/stack_guard \
   $(SDK_ROOT)/components/libraries/log/src \
   $(PROJ_DIR)/external/nordic \
-  $(PROJ_DIR)/external/timecake \
-  $(PROJ_DIR)/modules\
-  $(PROJ_DIR)/modules/bad_apple\
   $(PROJ_DIR)/drivers/pinetime_display_driver\
-  $(PROJ_DIR)/utils\
   $(PROJ_DIR)/events\
   $(PROJ_DIR)/\
   $(PROJ_DIR)/drivers\
