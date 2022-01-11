@@ -20,11 +20,7 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(PROJ_DIR)/drivers/pinetime_display_driver/display.c \
-  $(PROJ_DIR)/drivers/audio.c \
-  $(PROJ_DIR)/drivers/i2c.c \
   $(PROJ_DIR)/drivers/i2s.c \
-  $(PROJ_DIR)/drivers/flash.c \
-  $(PROJ_DIR)/events/time_event_handler.c \
   $(PROJ_DIR)/main.c \
 
 # Include folders common to all targets
@@ -162,7 +158,6 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/log/src \
   $(PROJ_DIR)/external/nordic \
   $(PROJ_DIR)/drivers/pinetime_display_driver\
-  $(PROJ_DIR)/events\
   $(PROJ_DIR)/\
   $(PROJ_DIR)/drivers\
   $(PROJ_DIR)/resources\

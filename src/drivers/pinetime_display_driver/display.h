@@ -1,7 +1,6 @@
 #pragma once
 #include "stdint.h"
 #include "stdbool.h"
-#include "system.h"
 
 /*
  * Function to init the display, 
@@ -44,7 +43,6 @@ void flip (bool flipped);
 void display_pause();
 void display_resume();
 
-extern process display;
 
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
 void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap);

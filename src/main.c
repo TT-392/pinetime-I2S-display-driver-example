@@ -27,7 +27,6 @@ int main(void) {
 
     drawSquare_I2S(0, 0, 239, 239, 0x0000);
     drawBitmap_I2S(0, 0, 99, 99, dummy);
-    while(1);
     while(1){
         drawSquare_I2S(0, 0, 239, 239, 0x0000);
         drawSquare_I2S(0, 0, 239, 239, 0xf800);
