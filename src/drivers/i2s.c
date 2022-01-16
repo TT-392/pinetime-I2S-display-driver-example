@@ -6,6 +6,7 @@
 #include "display_defines.h"
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define PIN_SCK    (2)
 #define PIN_LRCK   (29) // unconnected pin, but has to be set up for the I2S peripheral to work
@@ -95,7 +96,8 @@ void I2S_add_data_to_ll(const uint8_t* data, int sizeDiv4, enum display_byte_typ
     used_mem_div4 += sizeDiv4;
 }
 
-void I2S_add_data(const uint8_t* data, int sizeDiv4, enum display_byte_type type) { // sizeDiv4 has to be > 1
+void I2S_add_data(const uint8_t* data, int sizeDiv4, enum display_byte_type type) {
+    assert(sizeDiv4 > 1);
     if (sizeDiv4 >= 2)
         I2S_add_data_to_ll(data, 2, type);
     if (sizeDiv4 >= 3)

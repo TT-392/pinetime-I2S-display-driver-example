@@ -108,6 +108,7 @@ void display_init() {
 }
 
 void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t* bitmap) {
+    // We can only flip the command pin every 8 bytes, therefore we need a bunch of NOP's (0x00)
     uint8_t CASET[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, CMD_CASET};
     uint8_t coords1[8] = {x1 >> 8, x1 & 0xff, x2 >> 8, x2 & 0xff, 0x00, 0x00, 0x00, 0x00};
     
@@ -124,15 +125,29 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t*
     I2S_add_data(RASET, 2, D_CMD);
     I2S_add_data(coords2, 2, D_DAT);
     I2S_add_data(RAMWR, 2, D_CMD);
-    I2S_add_data(bitmap, 64, D_DAT);
-    I2S_start();
 
-    for (int i = 1; i < area / 128; i++) {
-        I2S_add_data(bitmap + (i) * 256, 64, D_DAT);
-        while (I2S_cleanup() > 128);
+
+
+    I2S_add_data(bitmap, (area > 128 ? 128 : area) / 2, D_DAT);
+
+
+    if (area <= 128) {
+        I2S_add_end();
+        I2S_start();
+    } else {
+        I2S_start();
+
+        area -= 128;
+        int i = 1;
+        while (area > 0) {
+            I2S_add_data(bitmap + i * 256, (area > 128 ? 128 : area) / 2, D_DAT);
+            while (I2S_cleanup() > 128);
+            area -= 128;
+            i++;
+        }
+        I2S_add_end();
     }
 
-    I2S_add_end();
 
     I2S_reset();
 }
