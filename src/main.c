@@ -6,8 +6,12 @@
 //#define PIN_MCK    (13)
 #define PIN_LRCK   (29) // unconnected pin, but has to be set up for the I2S peripheral to work
 
+#define COLOR_18bit 0x06
+#define COLOR_16bit 0x05
+#define COLOR_12bit 0x03
+
 // send one byte over spi (using SPIM to simplify the init commands)
-void display_send(bool mode, uint8_t byte) {
+void SPIM_send(bool mode, uint8_t byte) {
     if (mode)
         NRF_GPIOTE->TASKS_SET[1] = 1;
     else
@@ -102,18 +106,63 @@ void I2S_enable(bool enabled) {
     }
 }
 
-
-int main() {
-    nrf_gpio_cfg_output(LCD_SCK);
-    nrf_gpio_cfg_output(LCD_COMMAND);
-    nrf_gpio_pin_write(LCD_SCK,1);
-    nrf_delay_ms(1);
-    
-    I2S_init();
-    SPIM_init();
-    
+void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
     SPIM_enable(1);
-    display_send(1, 0xaa);
+
+    /* setup display for writing */
+    SPIM_send(0, CMD_CASET);
+
+    SPIM_send(1, x1 >> 8);
+    SPIM_send(1, x1 & 0xff);
+
+    SPIM_send(1, x2 >> 8);
+    SPIM_send(1, x2 & 0xff);
+
+    SPIM_send(0, CMD_RASET);
+
+    SPIM_send(1, y1 >> 8);
+    SPIM_send(1, y1 & 0xff);
+
+    SPIM_send(1, y2 >> 8);
+    SPIM_send(1, y2 & 0xff);
+
+    SPIM_send(0, CMD_RAMWR);
+    /**/
+
+    int area = (x2-x1+1)*(y2-y1+1);
+    int pixel = 0;
+
+    while (pixel != area) {
+        SPIM_send(1, color >> 8);
+        SPIM_send(1, color & 0xff);
+        
+        pixel++;
+
+    }
+    SPIM_enable(0);
+}
+
+void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
+    SPIM_enable(1);
+
+    SPIM_send(0, CMD_CASET);
+
+    SPIM_send(1, x1 >> 8);
+    SPIM_send(1, x1 & 0xff);
+
+    SPIM_send(1, x2 >> 8);
+    SPIM_send(1, x2 & 0xff);
+
+    SPIM_send(0, CMD_RASET);
+
+    SPIM_send(1, y1 >> 8);
+    SPIM_send(1, y1 & 0xff);
+
+    SPIM_send(1, y2 >> 8);
+    SPIM_send(1, y2 & 0xff);
+
+    // RAMWR is not needed, because this is included in the I2S packet
+
     SPIM_enable(0);
 
     NRF_GPIOTE->TASKS_CLR[1] = 1;
@@ -161,13 +210,65 @@ int main() {
 
     NRF_PPI->CHENSET = 1 << 1;
 
-    I2S_enable(0);
-//    SPIM_enable(1);
 
     // Since we are not updating the TXD pointer, the sine wave will play over and over again.
     // The TXD pointer can be updated after the EVENTS_TXPTRUPD arrives.
     while (1) {
         __WFE();
     }
+}
+
+
+int main() {
+    SPIM_enable(1);
+
+    I2S_init();
+    SPIM_init();
+
+    SPIM_enable(1);
+
+    nrf_gpio_cfg_output(LCD_MOSI);
+    nrf_gpio_cfg_output(LCD_SCK);
+    nrf_gpio_cfg_output(LCD_COMMAND);
+    nrf_gpio_pin_write(LCD_SCK,1);
+    nrf_gpio_cfg_output(LCD_SELECT);
+    nrf_gpio_cfg_output(LCD_RESET);
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_gpio_pin_write(LCD_COMMAND,1);
+    nrf_gpio_pin_write(LCD_RESET,1);
+    nrf_gpio_cfg_output(LCD_BACKLIGHT_HIGH);
+    nrf_gpio_pin_write(LCD_BACKLIGHT_HIGH,0);
+    nrf_delay_ms(1);
+
+    
+    ///////////////////
+    // reset display //
+    ///////////////////
+    nrf_gpio_pin_write(LCD_RESET,0);
+    nrf_delay_ms(200);
+    nrf_gpio_pin_write(LCD_RESET,1);
+    nrf_delay_ms(200);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+
+    SPIM_send (0, CMD_SWRESET);
+    SPIM_send (0, CMD_SLPOUT);
+
+    SPIM_send (0, CMD_COLMOD);
+    SPIM_send (1, COLOR_16bit);
+
+    SPIM_send (0, CMD_MADCTL); 
+    SPIM_send (1, 0x00);
+
+    SPIM_send (0, CMD_INVON); // for standard 16 bit colors
+    SPIM_send (0, CMD_NORON);
+    SPIM_send (0, CMD_DISPON);
+
+    SPIM_enable(0);
+
+    drawSquare(0, 0, 239, 239, 0x0000);
+    drawSquare_I2S(0, 0, 3, 3, 0xffff);
+    while(1);
+
+    
 }
 
