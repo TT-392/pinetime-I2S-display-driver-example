@@ -171,7 +171,7 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
 
     // The data seems to go through a 8 byte fifo before it actually reaches the output, therefore, the event generated at the end of bytes1 actually happens a little after CMD_RAMWR
     uint8_t bytes1[12] = {0x00, 0x00, 0xaa, CMD_RAMWR, 0xaa, 0xaa, 0xaa, 0xaa,  0xaa, 0xaa, 0xaa, 0xaa};
-    uint8_t byte[16] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    uint8_t byte[16] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
     NRF_I2S->TXD.PTR = (uint32_t)bytes1;
     NRF_I2S->RXTXD.MAXCNT = 3;
 
@@ -205,8 +205,10 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
 
     NRF_PPI->CHENSET = 1 << 2;
 
-    while (!NRF_I2S->EVENTS_TXPTRUPD);
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    for (int i = 0; i < 2000; i++) {
+        while (!NRF_I2S->EVENTS_TXPTRUPD);
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+    }
 
     NRF_PPI->CHENSET = 1 << 1;
 
@@ -266,7 +268,7 @@ int main() {
     SPIM_enable(0);
 
     drawSquare(0, 0, 239, 239, 0x0000);
-    drawSquare_I2S(0, 0, 3, 3, 0xffff);
+    drawSquare_I2S(0, 0, 90, 90, 0xffff);
     while(1);
 
     
