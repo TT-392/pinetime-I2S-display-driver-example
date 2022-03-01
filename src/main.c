@@ -2,6 +2,8 @@
 #include <nrf_gpio.h>
 #include <nrf_delay.h>
 #include "display_defines.h"
+#include <string.h>
+#include <assert.h>
 
 //#define PIN_MCK    (13)
 #define PIN_LRCK   (29) // unconnected pin, but has to be set up for the I2S peripheral to work
@@ -9,6 +11,16 @@
 #define COLOR_18bit 0x06
 #define COLOR_16bit 0x05
 #define COLOR_12bit 0x03
+
+void swapBytes(uint8_t* out, uint8_t* in, int size) {
+    assert(size % 2 == 0);
+
+    for (int i = 0; i < size / 2; i++) {
+        out[i*2] = in[i*2 + 1];
+        out[i*2 + 1] = in[i*2];
+    }
+}
+
 
 // send one byte over spi (using SPIM to simplify the init commands)
 void SPIM_send(bool mode, uint8_t byte) {
@@ -80,11 +92,18 @@ void I2S_init() {
     NRF_I2S->CONFIG.CHANNELS = 0 << I2S_CONFIG_CHANNELS_CHANNELS_Pos;
 
     // Configure pins
-    // NRF_I2S->PSEL.MCK = (PIN_MCK << I2S_PSEL_MCK_PIN_Pos);
     NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos); 
     NRF_I2S->PSEL.LRCK = (PIN_LRCK << I2S_PSEL_LRCK_PIN_Pos); 
     NRF_I2S->PSEL.SDOUT = (LCD_MOSI << I2S_PSEL_SDOUT_PIN_Pos);
+
+    NRF_PPI->CH[1].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[1].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
+    NRF_PPI->CH[2].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
 }
+
+#define PPI_I2S_TASKS_STOP 1
+#define PPI_GPIOTE_SET 2
 
 void SPIM_enable(bool enabled) {
     if (enabled)
@@ -142,9 +161,77 @@ void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t col
     SPIM_enable(0);
 }
 
-void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
+void RAMWR_I2S(uint8_t* data, int size) {
+    int offset = 0;
+    uint8_t buffer1[256];
+    uint8_t buffer2[256];
+    uint8_t* buffer = buffer1;
+
+    SPIM_enable(0);
+    NRF_GPIOTE->TASKS_CLR[1] = 1;
+    I2S_enable(1);
+
+
+    // The data seems to appear with a delay of a little less than 8 bytes
+    // (probably going through a fifo buffer or something therefore, the event
+    // generated at the end of actually happens a little after the start of the
+    // byte after CMD_RAMWR. The CMD pin is sampled at the end of a byte,
+    // therefore CMD_RAMWR will be treated as a command byte and the bytes
+    // after it as data.
+    uint8_t startPackage[12] = {0x00, 0x00, CMD_RAMWR, 0xaa,
+                                0xaa, 0xaa, 0xaa, 0xaa,
+                                0xaa, 0xaa, 0xaa, 0xaa};
+
+    uint8_t secondPackage[12] = {0xaa, 0xaa, 0xaa, 0xaa,
+                                 0xaa, 0xaa, 0xaa, 0xaa,
+                                 0xaa, 0xaa, 0xaa, 0xaa};
+
+    //memcpy(&startPackage[3], data, 9);
+    //offset += 9;
+
+    swapBytes(buffer, startPackage, sizeof(startPackage));
+
+    NRF_I2S->TXD.PTR = (uint32_t)buffer;
+    NRF_I2S->RXTXD.MAXCNT = 3;
+
+    if (buffer == buffer1) buffer = buffer2;
+    else buffer = buffer1;
+
+    swapBytes(buffer, secondPackage, sizeof(secondPackage));
+
+    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected; 
+
+    // bitbang 7 0's to fix bit offset
+    for (int i = 0; i < 7; i++) {
+        nrf_gpio_pin_write(LCD_SCK,1);
+        __NOP(); // may not be necessary
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
+
+    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos);
+    
+
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    NRF_I2S->TASKS_START = 1;
+
+    NRF_I2S->TXD.PTR = (uint32_t)buffer;
+    NRF_I2S->RXTXD.MAXCNT = 2;
+
+    while (!NRF_I2S->EVENTS_TXPTRUPD);
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+
+    NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
+
+    while (!NRF_I2S->EVENTS_TXPTRUPD);
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+
+    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
+}
+
+void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data) {
     SPIM_enable(1);
 
+    /*
     SPIM_send(0, CMD_CASET);
 
     SPIM_send(1, x1 >> 8);
@@ -160,57 +247,9 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
 
     SPIM_send(1, y2 >> 8);
     SPIM_send(1, y2 & 0xff);
+    */
 
-    // RAMWR is not needed, because this is included in the I2S packet
-
-    SPIM_enable(0);
-
-    NRF_GPIOTE->TASKS_CLR[1] = 1;
-    I2S_enable(1);
-
-
-    // The data seems to go through a 8 byte fifo before it actually reaches the output, therefore, the event generated at the end of bytes1 actually happens a little after CMD_RAMWR
-    uint8_t bytes1[12] = {0x00, 0x00, 0xaa, CMD_RAMWR, 0xaa, 0xaa, 0xaa, 0xaa,  0xaa, 0xaa, 0xaa, 0xaa};
-    uint8_t byte[16] = {0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
-    NRF_I2S->TXD.PTR = (uint32_t)bytes1;
-    NRF_I2S->RXTXD.MAXCNT = 3;
-
-    NRF_PPI->CH[1].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[1].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
-    NRF_PPI->CH[2].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
-    // Start transmitting I2S data
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-
-
-    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected; 
-
-    // bitbang 7 0's to fix bit offset
-    for (int i = 0; i < 7; i++) {
-        nrf_gpio_pin_write(LCD_SCK,1);
-        __NOP(); // may not be neccesary
-        nrf_gpio_pin_write(LCD_SCK,0);
-    }
-
-    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos);
-
-
-
-    NRF_I2S->TASKS_START = 1;
-    NRF_I2S->TXD.PTR = (uint32_t)byte;
-    NRF_I2S->RXTXD.MAXCNT = 4;
-
-    while (!NRF_I2S->EVENTS_TXPTRUPD);
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-
-    NRF_PPI->CHENSET = 1 << 2;
-
-    for (int i = 0; i < 2000; i++) {
-        while (!NRF_I2S->EVENTS_TXPTRUPD);
-        NRF_I2S->EVENTS_TXPTRUPD = 0;
-    }
-
-    NRF_PPI->CHENSET = 1 << 1;
+    RAMWR_I2S(data, (x2-x1+1) * (y2-y1+1) * 2);
 
 
     // Since we are not updating the TXD pointer, the sine wave will play over and over again.
@@ -220,12 +259,19 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
     }
 }
 
+uint16_t convertColor(uint8_t r, uint8_t g, uint8_t b) {
+  return ((r >> 3) << 11 | (g >> 2) << 5 | (b >> 3));
+}
 
 int main() {
     SPIM_enable(1);
 
     I2S_init();
     SPIM_init();
+
+    uint8_t data[] = {0xaa, 0xaa};
+    RAMWR_I2S(data, 1);
+    while(1);
 
     SPIM_enable(1);
 
@@ -243,6 +289,7 @@ int main() {
     nrf_delay_ms(1);
 
     
+    /*
     ///////////////////
     // reset display //
     ///////////////////
@@ -264,13 +311,29 @@ int main() {
     SPIM_send (0, CMD_INVON); // for standard 16 bit colors
     SPIM_send (0, CMD_NORON);
     SPIM_send (0, CMD_DISPON);
+    */
 
     SPIM_enable(0);
 
-    drawSquare(0, 0, 239, 239, 0x0000);
-    drawSquare_I2S(0, 0, 90, 90, 0xffff);
-    while(1);
-
+//    drawSquare(0, 0, 239, 239, 0x0000);
     
+    /*
+    int width = 18, height = 18;
+    uint8_t data[width * height * 2];
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int brightness = (x * width / 256) ^ (y * height / 256);
+            //uint16_t color = convertColor(brightness, brightness, brightness);
+            uint16_t color = 0xaa55;
+            data[(x + y*width) * 2] = color >> 8;
+            data[(x + y*width) * 2 + 1] = color & 0xff;
+        }
+    }
+
+    drawBitmap_I2S(0, 0, width - 1, height - 1, data);
+    */
+
+    while(1);
 }
 

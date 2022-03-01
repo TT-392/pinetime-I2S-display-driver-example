@@ -1,7 +1,39 @@
-resources:
-RTC0: clock_pine
-RTC1: time_event_handler
-RTC2: bad apple
-SPIM0: spiflash & display
-TIMER1: i2c
-TIMER2: audio
+7 bits bitbanged
+1 bit + 7 bytes of 0's
+Start of data: 
+0 0 0x2C byte1
+CMD pin rises halfway through byte1
+
+^ rising edge CMD pin
+| stop of transfer
+
+1 pixel:
+start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix1.1, pix1.2, dummy, dummy, dummy, dummy, dummy}
+                                  ^                               |
+next[4] = {dummy, dummy, dummy, dummy}
+
+2 pixels:
+start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, dummy, dummy, dummy, dummy, dummy}
+                                  ^                               |
+next[4] = {dummy, dummy, dummy, dummy}
+
+3 pixels:
+start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix1.1, pix1.2, dummy}
+                                  ^                                                               |
+next[8] = {dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
+
+4 pixels:
+start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix4.1, pix4.2, dummy}
+                                  ^                                                               |
+next[8] = {dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
+
+5 pixels:
+start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix4.1, pix4.2, pix5.1}
+                                  ^                                                               
+next[12] = {pix5.2, pix1.1, pix1.2, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
+                                      |
+6 pixels:
+start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix4.1, pix4.2, pix5.1}
+                                  ^                                                               
+next[12] = {pix5.2, pix6.1, pix6.2, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
+                                      |
