@@ -161,6 +161,95 @@ void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t col
     SPIM_enable(0);
 }
 
+void I2S_RAMWR(uint8_t* data, int pixCount)  {
+    assert(pixCount != 0);
+
+    SPIM_enable(0);
+    NRF_GPIOTE->TASKS_CLR[1] = 1;
+    I2S_enable(1);
+
+    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected; 
+
+    // bitbang 7 0's to fix bit offset
+    for (int i = 0; i < 7; i++) {
+        nrf_gpio_pin_write(LCD_SCK,1);
+        __NOP(); // may not be necessary
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
+
+    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos);
+
+    bool uneven = pixCount % 2;
+    pixCount += uneven;
+    int byteCount = pixCount*2;
+    int offset = 0;
+
+    // buffSize has to be divisible by 4
+    // Actual buffers are 8 bytes bigger to allow for end bytes
+    int buffSize = 16; 
+    uint8_t buffer1[buffSize + 8];
+    uint8_t buffer2[buffSize + 8];
+    uint8_t *buffer = buffer1;
+    uint8_t start[12] = {0x00, 0x00, 0x2C};
+    uint8_t firstPixel[2] = {data[0], data[1]};
+
+    int copyCount;
+    if (byteCount <= 9) {
+        copyCount = byteCount - uneven*2;
+    } else {
+        copyCount = 9;
+    }
+
+    memcpy(start + 3, data, copyCount);
+
+    if (byteCount <= 9 && uneven)
+        memcpy(start + 3 + copyCount, firstPixel, 2);
+
+    byteCount -= 9;
+    data += copyCount;
+
+    NRF_I2S->TXD.PTR = (uint32_t)start;
+    NRF_I2S->RXTXD.MAXCNT = 3;
+
+    bool first = true;
+    while (byteCount + 9 > 0) {
+        int MAXCNT;
+        if (byteCount > 0) {
+            if (byteCount <= buffSize) {
+                copyCount = byteCount - uneven*2;
+                MAXCNT = (byteCount+9) / 4;
+            } else {
+                copyCount = buffSize;
+                MAXCNT = (buffSize) / 4;
+            }
+
+            memcpy(buffer, data, copyCount);
+
+            if (byteCount <= buffSize && uneven)
+                memcpy(buffer + copyCount, firstPixel, 2);
+        } else {
+            MAXCNT = (byteCount+9) / 4;
+        }
+
+        if (first) {
+            NRF_I2S->TASKS_START = 1;
+            first = false;
+        }
+
+        NRF_I2S->TXD.PTR = (uint32_t)buffer;
+        NRF_I2S->RXTXD.MAXCNT = MAXCNT;
+
+        while (!NRF_I2S->EVENTS_TXPTRUPD);
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+
+        byteCount -= MAXCNT * 4;
+        data += MAXCNT * 4;
+        if (buffer == buffer1) buffer = buffer2;
+        else buffer = buffer1;
+    }
+    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
+}
+
 void RAMWR_I2S(uint8_t* data, int size) {
     int offset = 0;
     uint8_t buffer1[256];
@@ -269,8 +358,17 @@ int main() {
     I2S_init();
     SPIM_init();
 
-    uint8_t data[] = {0xaa, 0xaa};
-    RAMWR_I2S(data, 1);
+    //RAMWR_I2S("no", 2);
+
+    uint8_t data[100];
+    for (int i = 0; i < sizeof(data) / 2; i++) {
+        data[i*2] = (i+1)*0x10 + 0;
+        data[i*2+1] = (i+1)*0x10 + 1;
+    }
+    
+
+    I2S_RAMWR(data, 10);
+
     while(1);
 
     SPIM_enable(1);
