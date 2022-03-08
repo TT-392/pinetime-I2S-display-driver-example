@@ -35,5 +35,5 @@ next[12] = {pix5.2, pix1.1, pix1.2, dummy, dummy, dummy, dummy, dummy, dummy, du
 6 pixels:
 start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix4.1, pix4.2, pix5.1}
                                   ^                                                               
-next[12] = {pix5.2, pix6.1, pix6.2, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
+next0[12] = {pix5.2, pix6.1, pix6.2, pix7.1, pix7.2, pix8.1, pix8.2, pix9.1, pix9.2, pix10.1, pix10.2, pix11.1}
                                       |
