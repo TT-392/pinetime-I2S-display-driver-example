@@ -12,12 +12,14 @@
 #define COLOR_16bit 0x05
 #define COLOR_12bit 0x03
 
-void swapBytes(uint8_t* out, uint8_t* in, int size) {
+void swapBytes(uint8_t *buffer, int size) {
     assert(size % 2 == 0);
-
     for (int i = 0; i < size / 2; i++) {
-        out[i*2] = in[i*2 + 1];
-        out[i*2 + 1] = in[i*2];
+        uint8_t temp = buffer[i*2];
+        buffer[i*2] = 0;
+        buffer[i*2 + 1] = 0;
+        //buffer[i*2] = buffer[i*2 + 1];
+        //buffer[i*2 + 1] = temp;
     }
 }
 
@@ -179,6 +181,9 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
 
     NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos);
 
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    NRF_I2S->EVENTS_STOPPED = 0;
+
     bool uneven = pixCount % 2;
     pixCount += uneven;
     int byteCount = pixCount*2;
@@ -208,8 +213,6 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
     byteCount -= 9;
     data += copyCount;
 
-    NRF_I2S->TXD.PTR = (uint32_t)start;
-    NRF_I2S->RXTXD.MAXCNT = 3;
 
     bool first = true;
     while (byteCount + 9 > 0) {
@@ -227,100 +230,47 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
 
             if (byteCount <= buffSize && uneven)
                 memcpy(buffer + copyCount, firstPixel, 2);
+
+            swapBytes(buffer, MAXCNT*4);
         } else {
             MAXCNT = (byteCount+9) / 4;
         }
 
         if (first) {
+            swapBytes(start, 12);
+
+            NRF_I2S->RXTXD.MAXCNT = 3;
+            NRF_I2S->TXD.PTR = (uint32_t)start;
+
             NRF_I2S->TASKS_START = 1;
             first = false;
         }
 
-        NRF_I2S->TXD.PTR = (uint32_t)buffer;
-        NRF_I2S->RXTXD.MAXCNT = MAXCNT;
-
         while (!NRF_I2S->EVENTS_TXPTRUPD);
         NRF_I2S->EVENTS_TXPTRUPD = 0;
+
+        NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
+
+        NRF_I2S->RXTXD.MAXCNT = MAXCNT;
+        
+        NRF_I2S->TXD.PTR = (uint32_t)buffer;
 
         byteCount -= MAXCNT * 4;
         data += MAXCNT * 4;
         if (buffer == buffer1) buffer = buffer2;
         else buffer = buffer1;
     }
-    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
-}
-
-void RAMWR_I2S(uint8_t* data, int size) {
-    int offset = 0;
-    uint8_t buffer1[256];
-    uint8_t buffer2[256];
-    uint8_t* buffer = buffer1;
-
-    SPIM_enable(0);
-    NRF_GPIOTE->TASKS_CLR[1] = 1;
-    I2S_enable(1);
-
-
-    // The data seems to appear with a delay of a little less than 8 bytes
-    // (probably going through a fifo buffer or something therefore, the event
-    // generated at the end of actually happens a little after the start of the
-    // byte after CMD_RAMWR. The CMD pin is sampled at the end of a byte,
-    // therefore CMD_RAMWR will be treated as a command byte and the bytes
-    // after it as data.
-    uint8_t startPackage[12] = {0x00, 0x00, CMD_RAMWR, 0xaa,
-                                0xaa, 0xaa, 0xaa, 0xaa,
-                                0xaa, 0xaa, 0xaa, 0xaa};
-
-    uint8_t secondPackage[12] = {0xaa, 0xaa, 0xaa, 0xaa,
-                                 0xaa, 0xaa, 0xaa, 0xaa,
-                                 0xaa, 0xaa, 0xaa, 0xaa};
-
-    //memcpy(&startPackage[3], data, 9);
-    //offset += 9;
-
-    swapBytes(buffer, startPackage, sizeof(startPackage));
-
-    NRF_I2S->TXD.PTR = (uint32_t)buffer;
-    NRF_I2S->RXTXD.MAXCNT = 3;
-
-    if (buffer == buffer1) buffer = buffer2;
-    else buffer = buffer1;
-
-    swapBytes(buffer, secondPackage, sizeof(secondPackage));
-
-    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected; 
-
-    // bitbang 7 0's to fix bit offset
-    for (int i = 0; i < 7; i++) {
-        nrf_gpio_pin_write(LCD_SCK,1);
-        __NOP(); // may not be necessary
-        nrf_gpio_pin_write(LCD_SCK,0);
-    }
-
-    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos);
-    
-
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-    NRF_I2S->TASKS_START = 1;
-
-    NRF_I2S->TXD.PTR = (uint32_t)buffer;
-    NRF_I2S->RXTXD.MAXCNT = 2;
-
     while (!NRF_I2S->EVENTS_TXPTRUPD);
     NRF_I2S->EVENTS_TXPTRUPD = 0;
-
-    NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
-
-    while (!NRF_I2S->EVENTS_TXPTRUPD);
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-
     NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
+
+    while (!NRF_I2S->EVENTS_STOPPED);
 }
+
 
 void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data) {
     SPIM_enable(1);
 
-    /*
     SPIM_send(0, CMD_CASET);
 
     SPIM_send(1, x1 >> 8);
@@ -336,9 +286,8 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t 
 
     SPIM_send(1, y2 >> 8);
     SPIM_send(1, y2 & 0xff);
-    */
 
-    RAMWR_I2S(data, (x2-x1+1) * (y2-y1+1) * 2);
+    I2S_RAMWR(data, (x2-x1+1) * (y2-y1+1));
 
 
     // Since we are not updating the TXD pointer, the sine wave will play over and over again.
@@ -360,16 +309,16 @@ int main() {
 
     //RAMWR_I2S("no", 2);
 
+    /*
     uint8_t data[100];
     for (int i = 0; i < sizeof(data) / 2; i++) {
         data[i*2] = (i+1)*0x10 + 0;
         data[i*2+1] = (i+1)*0x10 + 1;
-    }
+    }*/
     
 
-    I2S_RAMWR(data, 10);
+//    I2S_RAMWR(data, 30);
 
-    while(1);
 
     SPIM_enable(1);
 
@@ -387,7 +336,7 @@ int main() {
     nrf_delay_ms(1);
 
     
-    /*
+    /*/
     ///////////////////
     // reset display //
     ///////////////////
@@ -413,24 +362,29 @@ int main() {
 
     SPIM_enable(0);
 
-//    drawSquare(0, 0, 239, 239, 0x0000);
+    //drawSquare(0, 0, 239, 239, 0x0000);
     
-    /*
-    int width = 18, height = 18;
-    uint8_t data[width * height * 2];
+    int width = 100, height = 100;
+    uint8_t data[20];
 
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int brightness = (x * width / 256) ^ (y * height / 256);
-            //uint16_t color = convertColor(brightness, brightness, brightness);
-            uint16_t color = 0xaa55;
-            data[(x + y*width) * 2] = color >> 8;
-            data[(x + y*width) * 2 + 1] = color & 0xff;
-        }
+    for (int i = 0; i < sizeof(data); i++) {
+        data[i] = i;
     }
 
-    drawBitmap_I2S(0, 0, width - 1, height - 1, data);
-    */
+    I2S_RAMWR(data, sizeof(data)/2);
+    while(1);
+
+    //for (int y = 0; y < height; y++) {
+    //    for (int x = 0; x < width; x++) {
+    //        int brightness = (x * width / 256) ^ (y * height / 256);
+    //        uint16_t color = convertColor(brightness, brightness, brightness);
+    //        color = 0xff00;
+    //        data[(x + y*width) * 2] = color >> 8;
+    //        data[(x + y*width) * 2 + 1] = color & 0xff;
+    //    }
+    //}
+
+    drawBitmap_I2S(0, 0, width - 1, height - 1, data + 10);
 
     while(1);
 }
