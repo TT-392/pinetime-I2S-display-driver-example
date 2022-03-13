@@ -16,10 +16,8 @@ void swapBytes(uint8_t *buffer, int size) {
     assert(size % 2 == 0);
     for (int i = 0; i < size / 2; i++) {
         uint8_t temp = buffer[i*2];
-        buffer[i*2] = 0;
-        buffer[i*2 + 1] = 0;
-        //buffer[i*2] = buffer[i*2 + 1];
-        //buffer[i*2 + 1] = temp;
+        buffer[i*2] = buffer[i*2 + 1];
+        buffer[i*2 + 1] = temp;
     }
 }
 
@@ -179,69 +177,80 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
         nrf_gpio_pin_write(LCD_SCK,0);
     }
 
-    NRF_I2S->PSEL.SCK = (LCD_SCK << I2S_PSEL_SCK_PIN_Pos);
+    NRF_I2S->PSEL.SCK = LCD_SCK << I2S_PSEL_SCK_PIN_Pos; 
+
+    const int EVENTLEAD = 9; // EVENTS_TXPTRUPD happens 9 bytes before the end of a dma transfer, we use this event to toggle the CMD pin, and to stop the transfer
+    int buffSize = 16; // hast to be divisable by 4
+
+
+    // We can only send an even number of pixels, if we have an uneven number, the first pixel is repeated at the end of the transfer
+    uint8_t lastPixel[2];
+
+    if (pixCount % 2) {
+        lastPixel[0] = data[0];
+        lastPixel[1] = data[1];
+    } else {
+        lastPixel[0] = data[pixCount*2 - 2];
+        lastPixel[1] = data[pixCount*2 - 1];
+    }
+
+    pixCount += pixCount % 2;
+    int byteCount = (pixCount + (pixCount%2)) * 2;
+
 
     NRF_I2S->EVENTS_TXPTRUPD = 0;
     NRF_I2S->EVENTS_STOPPED = 0;
 
-    bool uneven = pixCount % 2;
-    pixCount += uneven;
-    int byteCount = pixCount*2;
-    int offset = 0;
 
-    // buffSize has to be divisible by 4
-    // Actual buffers are 8 bytes bigger to allow for end bytes
-    int buffSize = 16; 
-    uint8_t buffer1[buffSize + 8];
-    uint8_t buffer2[buffSize + 8];
+    uint8_t buffer1[buffSize + EVENTLEAD];
+    uint8_t buffer2[buffSize + EVENTLEAD];
+    uint8_t buffer3[buffSize + EVENTLEAD];
     uint8_t *buffer = buffer1;
     uint8_t start[12] = {0x00, 0x00, 0x2C};
-    uint8_t firstPixel[2] = {data[0], data[1]};
 
     int copyCount;
-    if (byteCount <= 9) {
-        copyCount = byteCount - uneven*2;
+    if (byteCount <= EVENTLEAD) { // there are EVENTLEAD bytes of pixel data in the first 12 byte buffer
+        copyCount = byteCount-2;
+        memcpy(start + 3 + copyCount, lastPixel, 2);
     } else {
         copyCount = 9;
     }
 
     memcpy(start + 3, data, copyCount);
 
-    if (byteCount <= 9 && uneven)
-        memcpy(start + 3 + copyCount, firstPixel, 2);
 
-    byteCount -= 9;
+    byteCount -= EVENTLEAD;
     data += copyCount;
 
 
     bool first = true;
-    while (byteCount + 9 > 0) {
-        int MAXCNT;
+    while (byteCount + EVENTLEAD > 0) {
+        int transferSize;
+        assert(!((byteCount + EVENTLEAD) % 4));
+
         if (byteCount > 0) {
             if (byteCount <= buffSize) {
-                copyCount = byteCount - uneven*2;
-                MAXCNT = (byteCount+9) / 4;
+                copyCount = byteCount-2;
+                memcpy(buffer + copyCount, lastPixel, 2);
+
+                transferSize = byteCount + EVENTLEAD;
             } else {
                 copyCount = buffSize;
-                MAXCNT = (buffSize) / 4;
+                transferSize = buffSize;
             }
 
             memcpy(buffer, data, copyCount);
-
-            if (byteCount <= buffSize && uneven)
-                memcpy(buffer + copyCount, firstPixel, 2);
-
-            swapBytes(buffer, MAXCNT*4);
         } else {
-            MAXCNT = (byteCount+9) / 4;
+            transferSize = byteCount + EVENTLEAD;
         }
+        swapBytes(buffer, transferSize);
 
         if (first) {
+
             swapBytes(start, 12);
 
-            NRF_I2S->RXTXD.MAXCNT = 3;
+            NRF_I2S->RXTXD.MAXCNT = 12/4;
             NRF_I2S->TXD.PTR = (uint32_t)start;
-
             NRF_I2S->TASKS_START = 1;
             first = false;
         }
@@ -251,25 +260,28 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
 
         NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
 
-        NRF_I2S->RXTXD.MAXCNT = MAXCNT;
-        
+        assert(!(transferSize % 4));
+
+        NRF_I2S->RXTXD.MAXCNT = transferSize / 4;
         NRF_I2S->TXD.PTR = (uint32_t)buffer;
 
-        byteCount -= MAXCNT * 4;
-        data += MAXCNT * 4;
+
+        byteCount -= transferSize;
+        data += transferSize;
+
         if (buffer == buffer1) buffer = buffer2;
+        else if (buffer == buffer2) buffer = buffer3;
         else buffer = buffer1;
     }
     while (!NRF_I2S->EVENTS_TXPTRUPD);
     NRF_I2S->EVENTS_TXPTRUPD = 0;
-    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
 
+    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
     while (!NRF_I2S->EVENTS_STOPPED);
 }
 
 
 void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data) {
-    SPIM_enable(1);
 
     SPIM_send(0, CMD_CASET);
 
@@ -336,7 +348,6 @@ int main() {
     nrf_delay_ms(1);
 
     
-    /*/
     ///////////////////
     // reset display //
     ///////////////////
@@ -358,33 +369,27 @@ int main() {
     SPIM_send (0, CMD_INVON); // for standard 16 bit colors
     SPIM_send (0, CMD_NORON);
     SPIM_send (0, CMD_DISPON);
-    */
 
-    SPIM_enable(0);
 
     //drawSquare(0, 0, 239, 239, 0x0000);
     
-    int width = 100, height = 100;
-    uint8_t data[20];
+    int width = 150, height = 150;
 
-    for (int i = 0; i < sizeof(data); i++) {
-        data[i] = i;
+    uint8_t data[width*height*2];
+
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int brightness = (x * width / 256) ^ (y * height / 256);
+            uint16_t color = convertColor(brightness, brightness, brightness);
+            data[(x + y*width) * 2] = color >> 8;
+            data[(x + y*width) * 2 + 1] = color & 0xff;
+        }
     }
 
-    I2S_RAMWR(data, sizeof(data)/2);
-    while(1);
+    //I2S_RAMWR(data, sizeof(data)/2);
 
-    //for (int y = 0; y < height; y++) {
-    //    for (int x = 0; x < width; x++) {
-    //        int brightness = (x * width / 256) ^ (y * height / 256);
-    //        uint16_t color = convertColor(brightness, brightness, brightness);
-    //        color = 0xff00;
-    //        data[(x + y*width) * 2] = color >> 8;
-    //        data[(x + y*width) * 2 + 1] = color & 0xff;
-    //    }
-    //}
-
-    drawBitmap_I2S(0, 0, width - 1, height - 1, data + 10);
+    drawBitmap_I2S(0, 0, width - 1, height - 1, data);
 
     while(1);
 }
