@@ -23,3 +23,6 @@
 #define LCD_BACKLIGHT_LOW  14
 #define LCD_BACKLIGHT_MID  22
 #define LCD_BACKLIGHT_HIGH 23
+
+#define COLOR_16bit 0x05
+

@@ -6,8 +6,6 @@
 #include "display_defines.h"
 #include "display.h"
 
-#define COLOR_16bit 0x05
-
 void SPIM_init() {
     ////////////////
     // SPIM setup //

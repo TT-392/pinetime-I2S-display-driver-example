@@ -10,7 +10,6 @@ int main() {
 
     drawSquare(0, 0, 239, 239, 0x0000);
 
-    
     int width = 120, height = 120;
     uint8_t data[width*height*2];
 
