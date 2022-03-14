@@ -1,3 +1,5 @@
+#pragma once 
+
 void display_init();
 
 // quick and dirty known working drawSquare

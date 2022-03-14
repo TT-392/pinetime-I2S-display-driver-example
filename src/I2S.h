@@ -1,3 +1,5 @@
+#pragma once
+
 void I2S_init();
 
 void I2S_enable(bool enabled);

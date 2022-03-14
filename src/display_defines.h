@@ -6,6 +6,7 @@
 #define LCD_SELECT         25
 #define LCD_COMMAND        18
 #define LCD_RESET          26
+#define PIN_LRCK           29 // unconnected pin, but has to be set up for the I2S peripheral to work
 
 #define CMD_COLMOD    0x3A
 #define CMD_INVON     0x21
