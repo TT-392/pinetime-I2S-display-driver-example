@@ -20,8 +20,8 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52.S \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52.c \
   $(PROJ_DIR)/main.c \
-  #$(PROJ_DIR)/drivers/i2s.c \
-  #$(PROJ_DIR)/drivers/display.c \
+  $(PROJ_DIR)/I2S.c \
+  $(PROJ_DIR)/display.c \
 
 # Include folders common to all targets
 INC_FOLDERS += \
