@@ -159,8 +159,7 @@ INC_FOLDERS += \
   $(SDK_ROOT)/components/libraries/stack_guard \
   $(SDK_ROOT)/components/libraries/log/src \
   $(PROJ_DIR)/external/nordic \
-  $(PROJ_DIR)/\
-  $(PROJ_DIR)/drivers\
+  $(PROJ_DIR)/
 
 # Libraries common to all targets
 LIB_FILES += \
