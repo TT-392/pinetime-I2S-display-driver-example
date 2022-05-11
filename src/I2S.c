@@ -52,13 +52,112 @@ void I2S_enable(bool enabled) {
 }
 
 
-static inline void swapBytes(uint8_t *buffer, int size) {
+static inline void swapBytes(volatile uint8_t *buffer, int size) {
     assert(size % 2 == 0);
     for (int i = 0; i < size / 2; i++) {
         uint8_t temp = buffer[i*2];
         buffer[i*2] = buffer[i*2 + 1];
         buffer[i*2 + 1] = temp;
     }
+}
+
+void I2S_RAMWR_COLOR(uint16_t color, int pixCount)  {
+    // This I2S driver works by abusing the TXPTRUPD event as a PPI event to
+    // either stop the transfer or toggle the CMD pin. This event happens
+    // roughly 8.5 bytes before the end of a dma transfer, though, because half
+    // a byte is seen as no byte, and the CMD pin is sampled at the end of a
+    // byte, in practice, the action taken on EVENTS_TXPTRUPD has effect 9
+    // bytes (EVENTLEAD) before the end of the dma transfer. As an example of how
+    // this is done, take the following I2S transfer of 7 pixels:
+    //
+    // start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix4.1, pix4.2, pix5.1}
+    //                                   ^ *1
+    // buffer[16] = {pix5.2, pix6.1, pix6.2, pix7.1, pix7.2, pix1.1, pix1.2, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
+    //                                                         ^ *3            ^ *2
+    //
+    // *1: The first TXPTRUPD event, the CMD pin will be set high here
+    // *2: The second TXPTRUPD event, the I2S transfer will be stopped here
+    // *3: The I2S dma transfer has to be a multiple of 4 bytes, therefore an
+    // uneven number ends with the first pixel repeated
+    //
+    // More notes:
+    //
+    // Because the I2S doesn't do 16MHz 8 bit transfers, it has to have a word
+    // size of 16 bytes at minimum, and, because of messed up endianness, the
+    // buffers in the example will need to have their endianness swapped by
+    // swapBytes() before the dma transfer.
+    //
+    // In reality, the transfer has 8 bytes and 1 bit of zeroes in front of it,
+    // therefore 7 bits are bitbanged at the start of the I2S transfer.
+    // Something similar goes for the end of the transfer, but this can be
+    // fixed by toggling the CS pin.
+
+    assert(pixCount != 0);
+
+    const int EVENTLEAD = 9;
+
+    int buffSize = 16; // has to be divisable by 4
+
+    volatile uint8_t buffer[4] = {color & 0xff,
+        color >> 8, color & 0xff,
+        color >> 8};
+
+    volatile uint8_t start[12] = {0x00, 0x00, CMD_RAMWR,
+        color >> 8, color & 0xff,
+        color >> 8, color & 0xff,
+        color >> 8, color & 0xff,
+        color >> 8, color & 0xff,
+        color >> 8};
+
+    swapBytes(start, 12);
+    swapBytes(buffer, 4);
+
+    I2S_enable(1);
+
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    NRF_I2S->EVENTS_STOPPED = 0;
+
+    NRF_GPIOTE->TASKS_CLR[1] = 1; // The command pin is connected to this GPIOTE channel
+
+    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected;
+
+    // bitbang 7 0's to fix bit offset
+    for (int i = 0; i < 7; i++) {
+        nrf_gpio_pin_write(LCD_SCK,1);
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
+
+    NRF_I2S->PSEL.SCK = LCD_SCK << I2S_PSEL_SCK_PIN_Pos;
+
+
+    NRF_I2S->RXTXD.MAXCNT = sizeof(start)/4;
+    NRF_I2S->TXD.PTR = (uint32_t)start;
+    NRF_I2S->TASKS_START = 1;
+
+    while (!NRF_I2S->EVENTS_TXPTRUPD);
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+
+    NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
+
+    NRF_I2S->TXD.PTR = (uint32_t)buffer;
+    NRF_I2S->RXTXD.MAXCNT = 1;
+
+    for (int i = 0; i < (pixCount / 2) * 2; i++) {
+        while (!NRF_I2S->EVENTS_TXPTRUPD);
+        NRF_I2S->EVENTS_TXPTRUPD = 0;
+    }
+
+    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
+    while (!NRF_I2S->EVENTS_STOPPED);
+
+    NRF_PPI->CHENCLR = 1 << PPI_GPIOTE_SET;
+    NRF_PPI->CHENCLR = 1 << PPI_I2S_TASKS_STOP;
+
+    I2S_enable(0);
+
+    // Transfer ends on a random bit, therefore CS has to be toggled to reset the bit counter
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
 }
 
 void I2S_RAMWR(uint8_t* data, int pixCount)  {
