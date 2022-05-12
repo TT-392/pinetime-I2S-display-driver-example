@@ -142,10 +142,13 @@ void I2S_RAMWR_COLOR(uint16_t color, int pixCount)  {
     NRF_I2S->TXD.PTR = (uint32_t)buffer;
     NRF_I2S->RXTXD.MAXCNT = 1;
 
-    for (int i = 0; i < (pixCount / 2) * 2; i++) {
+
+    // The amount of 4 byte chunks after the cmd pin was taken high until the transfer ends
+    for (int i = 0; i < ((pixCount + 1) / 2); i++) {
         while (!NRF_I2S->EVENTS_TXPTRUPD);
         NRF_I2S->EVENTS_TXPTRUPD = 0;
     }
+    
 
     NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
     while (!NRF_I2S->EVENTS_STOPPED);
