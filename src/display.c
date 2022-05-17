@@ -155,6 +155,28 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t 
     I2S_RAMWR_bitmap(data, (x2-x1+1) * (y2-y1+1));
 }
 
+#define binInd(buff, ind) ((buff[ind / 8] >> (ind % 8)) & 1)
+
+void drawMono_I2S(int x1, int y1, int x2, int y2, uint8_t* frame, uint16_t posColor, uint16_t negColor) {
+    SPIM_enable(1);
+    size_t byteCount = 2 * (x2-x1+1) * (y2-y1+1);
+    size_t chunkSize = 1048;
+    assert(chunkSize > 480);
+
+    columnWidth = x2-x1+1;
+    chunkSize -= chunkSize % 
+    uint8_t buffer[chunkSize];
+    
+    for (int i = 0; i < chunkSize; i += 2) {
+        uint16_t color = binInd(frame, i) ? posColor : negColor;
+        buffer[i] = color & 0xff;
+        buffer[i] = color << 8;
+        //*((uint16_t*)&buffer[i]) = color;
+    }
+
+    drawBitmap_I2S(x1, y1, x2, y2, buffer);
+}
+
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
     SPIM_enable(1);
 

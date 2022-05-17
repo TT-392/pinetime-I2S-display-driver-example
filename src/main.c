@@ -1,5 +1,6 @@
 #include <nrf.h>
 #include "display.h"
+#include "frame.c"
 
 uint16_t convertColor(uint8_t r, uint8_t g, uint8_t b) {
     return ((r >> 3) << 11 | (g >> 2) << 5 | (b >> 3));
@@ -24,6 +25,9 @@ int main() {
             data[(x + y*width) * 2 + 1] = color & 0xff;
         }
     }
+    drawMono_I2S(0, 0, 239, 239, frame, 0xffff, 0x0000);
+
+    while(1);
 
     while(1) {
         drawBitmap_I2S(0, 0, width - 1, height - 1, data);
