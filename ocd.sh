@@ -14,6 +14,6 @@ fi
 
 if [ "$1" = "makeflash" ];
 then
-    make -j -f Makefile EXTRAFLAGS=-DstableDisplay
+    make -j -f Makefile
     $openocd_install_location/src/openocd -s $openocd_install_location/tcl -f ocd/flash.cfg -l /tmp/openocd.log
 fi

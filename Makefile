@@ -165,7 +165,7 @@ INC_FOLDERS += \
 LIB_FILES += \
 
 # Optimization flags
-OPT = -O3 -g3 #-Og
+OPT = -O3 -g3 -Og#-Og
 # Uncomment the line below to enable link time optimization
 OPT += -flto
 
@@ -190,6 +190,7 @@ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in a separate section, this allows linker to discard unused ones
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin -fshort-enums
+CFLAGS += -Wunused
 
 # C++ flags common to all targets
 CXXFLAGS += $(OPT)
@@ -258,6 +259,8 @@ flash: default
 	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex --sectorerase
 	scope_ctrl reset
+	scope_ctrl reset
+	scope_ctrl pulseview
 
 # Flash softdevice
 flash_softdevice:

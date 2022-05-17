@@ -52,7 +52,7 @@ void I2S_enable(bool enabled) {
 }
 
 
-static inline void swapBytes(volatile uint8_t *buffer, int size) {
+static inline void swapBytes(volatile uint8_t *buffer, size_t size) {
     assert(size % 2 == 0);
     for (int i = 0; i < size / 2; i++) {
         uint8_t temp = buffer[i*2];
@@ -61,7 +61,37 @@ static inline void swapBytes(volatile uint8_t *buffer, int size) {
     }
 }
 
-void I2S_RAMWR_COLOR(uint16_t color, int pixCount)  {
+static uint8_t *active_buffer;
+static size_t active_buffer_size;
+static size_t active_buffer_index;
+
+static inline void init_fill_buffer(uint8_t *input_buffer, size_t size) {
+    active_buffer = input_buffer;    
+    active_buffer_index = 0;
+    active_buffer_size = size;
+}
+
+static inline void fill_buffer(volatile uint8_t *buffer, size_t size) {
+    if (size < active_buffer_size - active_buffer_index) {
+        memcpy((uint8_t*)buffer, active_buffer + active_buffer_index, size);
+        active_buffer_index += size;
+    } else {
+        memcpy((uint8_t*)buffer, active_buffer + active_buffer_index, active_buffer_size - active_buffer_index);
+
+        buffer += active_buffer_size - active_buffer_index;
+        size -= active_buffer_size - active_buffer_index;
+        active_buffer_index = 0;
+
+        fill_buffer(buffer, size);
+        /*
+        assert(size < active_buffer_size - active_buffer_index);
+        memcpy((uint8_t*)buffer, active_buffer + active_buffer_index, size);
+        active_buffer_index += size;
+        */
+    }
+}
+
+void I2S_RAMWR_COLOR(uint16_t color, int pixCount) {
     // This I2S driver works by abusing the TXPTRUPD event as a PPI event to
     // either stop the transfer or toggle the CMD pin. This event happens
     // roughly 8.5 bytes before the end of a dma transfer, though, because half
@@ -163,7 +193,129 @@ void I2S_RAMWR_COLOR(uint16_t color, int pixCount)  {
     nrf_gpio_pin_write(LCD_SELECT,0);
 }
 
+static inline void wait_for_txptrupd() {
+    while (!NRF_I2S->EVENTS_TXPTRUPD);
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+}
+
+enum ppi_action {PPI_CMD_PIN_HIGH, PPI_END_TRANSFER};
+static inline void set_action_on_next_event(enum ppi_action action) {
+    switch (action) {
+        case PPI_CMD_PIN_HIGH:
+            NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
+            break;
+        case PPI_END_TRANSFER:
+            NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
+            break;
+    }
+}
+
+static inline void setup_next_txptr(volatile uint8_t* buffer, size_t size) {
+    assert (size % 4 == 0);
+
+    NRF_I2S->RXTXD.MAXCNT = size/4;
+    NRF_I2S->TXD.PTR = (uint32_t)buffer;
+}
+
+static inline void init_transfer() {
+    I2S_enable(1);
+
+    NRF_I2S->EVENTS_TXPTRUPD = 0;
+    NRF_I2S->EVENTS_STOPPED = 0;
+
+    NRF_GPIOTE->TASKS_CLR[1] = 1; // The command pin is connected to this GPIOTE channel
+
+    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected;
+
+    // bitbang 7 0's to fix bit offset
+    for (int i = 0; i < 7; i++) {
+        nrf_gpio_pin_write(LCD_SCK,1);
+        nrf_gpio_pin_write(LCD_SCK,0);
+    }
+
+    NRF_I2S->PSEL.SCK = LCD_SCK << I2S_PSEL_SCK_PIN_Pos;
+}
+
 void I2S_RAMWR(uint8_t* data, int pixCount)  {
+    assert(pixCount != 0);
+
+    int byteCount = (pixCount + pixCount%2) * 2;
+    const int EVENTLEAD = 9;
+    int buffSize = 16; // has to be divisable by 4
+
+    // The buffers contain extra space for trailing dummy bytes
+    volatile uint8_t buffer1[buffSize + EVENTLEAD];
+    volatile uint8_t buffer2[buffSize + EVENTLEAD];
+    volatile uint8_t buffer3[buffSize + EVENTLEAD];
+    volatile uint8_t *buffer = buffer1;
+    volatile uint8_t startbuff[12] = {0x00, 0x00, CMD_RAMWR};
+
+    init_fill_buffer(data, pixCount * 2);
+
+    int copyCount = sizeof(startbuff) - 3 < byteCount ? sizeof(startbuff) - 3 : byteCount;
+    fill_buffer(startbuff + 3, copyCount);
+    swapBytes(startbuff, sizeof(startbuff));
+    byteCount -= sizeof(startbuff) - 3;
+
+    if (byteCount > 0) {
+        if (buffSize < byteCount) {
+            fill_buffer(buffer, buffSize);
+            swapBytes(buffer, buffSize);
+            byteCount -= buffSize;
+        } else {
+            fill_buffer(buffer, byteCount);
+            swapBytes(buffer, byteCount + EVENTLEAD);
+        }
+    }
+
+    init_transfer();
+
+    setup_next_txptr(startbuff, sizeof(startbuff));
+    NRF_I2S->TASKS_START = 1;
+
+    if (byteCount > buffSize) {
+        wait_for_txptrupd();
+
+        set_action_on_next_event(PPI_CMD_PIN_HIGH);
+        setup_next_txptr(buffer, buffSize);
+
+        while (byteCount > buffSize) {
+            if (buffer == buffer1) buffer = buffer2;
+            else if (buffer == buffer2) buffer = buffer3;
+            else buffer = buffer1;
+
+            copyCount = buffSize < byteCount ? buffSize : byteCount;
+            fill_buffer(buffer, copyCount);
+            swapBytes(buffer, copyCount);
+            byteCount -= copyCount;
+
+            wait_for_txptrupd();
+            setup_next_txptr(buffer, buffSize);
+        }
+    }
+
+    wait_for_txptrupd();
+
+    set_action_on_next_event(PPI_CMD_PIN_HIGH);
+    setup_next_txptr(buffer, byteCount + EVENTLEAD);
+
+    wait_for_txptrupd();
+
+    set_action_on_next_event(PPI_END_TRANSFER);
+    while (!NRF_I2S->EVENTS_STOPPED);
+
+
+    NRF_PPI->CHENCLR = 1 << PPI_GPIOTE_SET;
+    NRF_PPI->CHENCLR = 1 << PPI_I2S_TASKS_STOP;
+
+    I2S_enable(0);
+
+    // Transfer ends on a random bit, therefore CS has to be toggled to reset the bit counter
+    nrf_gpio_pin_write(LCD_SELECT,1);
+    nrf_gpio_pin_write(LCD_SELECT,0);
+}
+
+/*void I2S_RAMWR(uint8_t* data, int pixCount)  {
     // This I2S driver works by abusing the TXPTRUPD event as a PPI event to
     // either stop the transfer or toggle the CMD pin. This event happens
     // roughly 8.5 bytes before the end of a dma transfer, though, because half
@@ -201,11 +353,11 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
     int buffSize = 16; // has to be divisable by 4
 
     // The buffers contain extra space for trailing dummy bytes
-    uint8_t buffer1[buffSize + EVENTLEAD];
-    uint8_t buffer2[buffSize + EVENTLEAD];
-    uint8_t buffer3[buffSize + EVENTLEAD];
-    uint8_t *buffer = buffer1;
-    uint8_t start[12] = {0x00, 0x00, CMD_RAMWR};
+    volatile uint8_t buffer1[buffSize + EVENTLEAD];
+    volatile uint8_t buffer2[buffSize + EVENTLEAD];
+    volatile uint8_t buffer3[buffSize + EVENTLEAD];
+    volatile uint8_t *buffer = buffer1;
+    volatile uint8_t start[12] = {0x00, 0x00, CMD_RAMWR};
 
     I2S_enable(1);
 
@@ -323,4 +475,4 @@ void I2S_RAMWR(uint8_t* data, int pixCount)  {
     // Transfer ends on a random bit, therefore CS has to be toggled to reset the bit counter
     nrf_gpio_pin_write(LCD_SELECT,1);
     nrf_gpio_pin_write(LCD_SELECT,0);
-}
+}*/

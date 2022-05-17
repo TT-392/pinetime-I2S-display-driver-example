@@ -8,7 +8,8 @@ uint16_t convertColor(uint8_t r, uint8_t g, uint8_t b) {
 int main() {
     display_init();
 
-    drawSquare_I2S(0, 0, 239, 239, 0x0000);
+    drawSquare_I2S(0, 0, 239, 239, 0x001f);
+    drawSquare_I2S(0, 0, 239, 239, 0xf800);
 
     int width = 120, height = 120;
     uint8_t data[width*height*2];
@@ -25,13 +26,12 @@ int main() {
     }
 
     while(1) {
-    drawBitmap_I2S(0, 0, width - 1, height - 1, data);
-    drawBitmap_I2S(120, 120, 120 + width - 1, 120 + height - 1, data);
-    drawBitmap_I2S(120, 0, 120 + width - 1, height - 1, data);
-    drawBitmap_I2S(0, 120, width - 1, 120 + height - 1, data);
-    drawSquare_I2S(0, 0, 239, 239, 0xf800);
+        drawBitmap_I2S(0, 0, width - 1, height - 1, data);
+        drawBitmap_I2S(120, 120, 120 + width - 1, 120 + height - 1, data);
+        drawBitmap_I2S(120, 0, 120 + width - 1, height - 1, data);
+        drawBitmap_I2S(0, 120, width - 1, 120 + height - 1, data);
+        drawSquare_I2S(0, 0, 239, 239, 0xf800);
     }
 
     while(1);
 }
-
