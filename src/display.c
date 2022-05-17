@@ -152,7 +152,43 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t 
 
     SPIM_enable(0);
 
-    I2S_RAMWR(data, (x2-x1+1) * (y2-y1+1));
+    I2S_BITMAP_t bmp_struct = {
+        .bitmap = data, 
+        .pixCount = (x2-x1+1) * (y2-y1+1)
+    };
+
+    I2S_RAMWR(&bmp_struct, BITMAP);
+}
+
+void drawMono_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data, uint16_t color_fg, uint16_t color_bg) {
+    SPIM_enable(1);
+
+    SPIM_send(0, CMD_CASET);
+
+    SPIM_send(1, x1 >> 8);
+    SPIM_send(1, x1 & 0xff);
+
+    SPIM_send(1, x2 >> 8);
+    SPIM_send(1, x2 & 0xff);
+
+    SPIM_send(0, CMD_RASET);
+
+    SPIM_send(1, y1 >> 8);
+    SPIM_send(1, y1 & 0xff);
+
+    SPIM_send(1, y2 >> 8);
+    SPIM_send(1, y2 & 0xff);
+
+    SPIM_enable(0);
+
+    I2S_MONO_t mono_struct = {
+        .bitmap = data, 
+        .pixCount = (x2-x1+1) * (y2-y1+1),
+        .color_fg = color_fg,
+        .color_bg = color_bg
+    };
+
+    I2S_RAMWR(&mono_struct, MONO);
 }
 
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
