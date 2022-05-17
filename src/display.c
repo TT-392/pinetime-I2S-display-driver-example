@@ -152,7 +152,7 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t 
 
     SPIM_enable(0);
 
-    I2S_RAMWR(data, (x2-x1+1) * (y2-y1+1));
+    I2S_RAMWR_bitmap(data, (x2-x1+1) * (y2-y1+1));
 }
 
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
@@ -176,5 +176,5 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
 
     SPIM_enable(0);
 
-    I2S_RAMWR_COLOR(color, (x2-x1+1) * (y2-y1+1));
+    I2S_RAMWR_solid_color(color, (x2-x1+1) * (y2-y1+1));
 }
