@@ -1,5 +1,6 @@
 #include <nrf.h>
 #include <nrf_gpio.h>
+#include <nrf_delay.h>
 #include "display_defines.h"
 #include <assert.h>
 #include <string.h>
@@ -26,10 +27,45 @@ void I2S_init() {
 
     NRF_GPIOTE->TASKS_CLR[1] = 1;
 
+    NRF_TIMER3->MODE = 0 << TIMER_MODE_MODE_Pos; // timer mode
+    NRF_TIMER3->BITMODE = 3 << TIMER_BITMODE_BITMODE_Pos; // 16 bit
+    // Independent of prescaler setting the accuracy of the TIMER is equivalent
+    // to one tick of the timer frequency fTIMER as illustrated in Figure 42:
+    // Block schematic for timer/counter on page 234.
+    NRF_TIMER3->PRESCALER = 0 << TIMER_PRESCALER_PRESCALER_Pos; // 16 MHz
+
+    uint32_t offset = 4 + 8*8;
+    NRF_TIMER3->CC[0] = offset + 8*2;
+    //NRF_TIMER3->CC[1] = offset + 8*1;
+    //NRF_TIMER3->CC[2] = offset + 8*2;
+    //NRF_TIMER3->CC[3] = offset + 8*3;
+
+    NRF_PPI->CH[5].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[0];
+    NRF_PPI->CH[5].TEP = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
+    //NRF_PPI->CH[6].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[1];
+    //NRF_PPI->CH[6].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+    //NRF_PPI->CH[7].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[2];
+    //NRF_PPI->CH[7].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+    //NRF_PPI->CH[8].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[3];
+    //NRF_PPI->CH[8].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+    NRF_PPI->CHENSET = 1 << 5;
+    NRF_PPI->CHENSET = 1 << 6;
+    NRF_PPI->CHENSET = 1 << 7;
+    NRF_PPI->CHENSET = 1 << 8;
+
     NRF_PPI->CH[1].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
     NRF_PPI->CH[1].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
-    NRF_PPI->CH[2].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
+
+    ///NRF_PPI->CH[2].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[0];
+    ///NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+    //NRF_PPI->CH[3].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    //NRF_PPI->CH[3].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+    //NRF_PPI->CH[3].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    //NRF_PPI->CH[3].TEP = (uint32_t) &NRF_TIMER3->TASKS_START;
+    NRF_PPI->CH[4].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[4].TEP = (uint32_t) &NRF_TIMER3->TASKS_CLEAR;
+    //NRF_PPI->CHENSET = 1 << 3;
+    NRF_PPI->CHENSET = 1 << 4;
 }
 
 #define PPI_I2S_TASKS_STOP 1
@@ -63,11 +99,10 @@ static inline void swapBytes(volatile uint8_t *buffer, size_t size) {
 }
 
 static uint8_t *active_buffer;
-static size_t active_buffer_size;
+static size_t active_pixCount;
 static size_t active_index;
 static uint16_t color_fg;
 static uint16_t color_bg;
-
 static size_t active_index;
 static enum transfertype active_transfertype;
 
@@ -78,12 +113,12 @@ static inline void init_bufferfiller(void *data, enum transfertype type) {
         case BITMAP:
             I2S_BITMAP_t *bmp_struct = (I2S_BITMAP_t*)data;
             active_buffer = bmp_struct->bitmap;
-            active_buffer_size = bmp_struct->pixCount * 2;
+            active_pixCount = bmp_struct->pixCount * 2;
             break;
         case MONO:
             I2S_MONO_t *mono_struct = (I2S_MONO_t*)data;
             active_buffer = mono_struct->bitmap;
-            active_buffer_size = mono_struct->pixCount * 2;
+            active_pixCount = mono_struct->pixCount;
             color_fg = mono_struct->color_fg;
             color_bg = mono_struct->color_bg;
             break;
@@ -93,38 +128,34 @@ static inline void init_bufferfiller(void *data, enum transfertype type) {
     active_transfertype = type;
 }
 
-static inline void fill_buffer(volatile uint8_t *buffer, size_t size) {
+static inline int fill_buffer(volatile uint8_t *buffer, size_t size) {
     switch (active_transfertype) {
         case BITMAP:
-            if (size < active_buffer_size - active_index) {
-                memcpy((uint8_t*)buffer, active_buffer + active_index, size);
-                active_index += size;
-            } else {
-                memcpy((uint8_t*)buffer, active_buffer + active_index, active_buffer_size - active_index);
+            for (int i = 0; i < size; i += 2) {
+                buffer[i] = (active_buffer + active_index)[1];
+                buffer[i + 1] = (active_buffer + active_index)[0];
 
-                buffer += active_buffer_size - active_index;
-                size -= active_buffer_size - active_index;
-                active_index = 0;
-
-                fill_buffer(buffer, size);
-            }
-            break;
-        case MONO:
-            for (int i = 0; i < size; i++) {
-                static uint16_t color;
-                if (active_index % 2 == 0) {
-                    bool bit = binInd(active_buffer, active_index / 2);
-                    color = bit ? 0xff : 0x00;
-
-                    buffer[i] = color;
-                } else {
-                    buffer[i] = color;
+                active_index += 2;
+                if (active_index >= active_pixCount){
+                    return -1;
                 }
-                active_index++;
-                if (active_index >= active_buffer_size * 2)
-                    active_index = 0;
             }
-            break;
+            return 0;
+        case MONO:
+            for (int i = 0; i < size; i += 2) {
+                bool bit = binInd(active_buffer, active_index);
+
+                static uint16_t color;
+                color = bit ? color_fg: color_bg;
+
+                buffer[i] = ((uint8_t*)&color)[0];
+                buffer[i + 1] = ((uint8_t*)&color)[1];
+
+                active_index++;
+                if (active_index >= active_pixCount)
+                    return -1;
+            }
+            return 0;
     }
 }
 
@@ -270,6 +301,16 @@ static inline void init_transfer() {
 }
 
 void I2S_RAMWR(void* data, enum transfertype type)  {
+    // 24.3 Task delays
+    // After the TIMER is started, the CLEAR task, COUNT task and the STOP task
+    // will guarantee to take effect within one clock cycle of the PCLK16M.
+    //
+    // For this reason we start the timer bbefore we start I2S, instead of in
+    // the PPI
+    NRF_TIMER3->TASKS_START = 1;
+    NRF_PPI->CHENSET = 1 << 4;
+    NRF_PPI->CHENCLR = 1 << 1;
+
     size_t pixCount;
 
     switch (type) {
@@ -285,74 +326,47 @@ void I2S_RAMWR(void* data, enum transfertype type)  {
 
     assert(pixCount != 0);
 
-    int byteCount = (pixCount + pixCount%2) * 2;
-    const int EVENTLEAD = 9;
-    int buffSize = 256; // must be a multiple of 4
+#define buffSize 256 // must be a multiple of 4
 
     // The buffers contain extra space for trailing dummy bytes
-    volatile uint8_t buffer1[buffSize + EVENTLEAD];
-    volatile uint8_t buffer2[buffSize + EVENTLEAD];
-    volatile uint8_t buffer3[buffSize + EVENTLEAD];
+    volatile uint8_t buffer1[buffSize] = {CMD_RAMWR, 0};
+    volatile uint8_t buffer2[buffSize];
+    volatile uint8_t buffer3[buffSize];
     volatile uint8_t *buffer = buffer1;
-    volatile uint8_t startbuff[12] = {0x00, 0x00, CMD_RAMWR};
 
     init_bufferfiller(data, type);
 
-    int copyCount = sizeof(startbuff) - 3 < byteCount ? sizeof(startbuff) - 3 : byteCount;
-    fill_buffer(startbuff + 3, copyCount);
-    swapBytes(startbuff, sizeof(startbuff));
-    byteCount -= sizeof(startbuff) - 3;
-
-    if (byteCount > 0) {
-        if (buffSize < byteCount) {
-            fill_buffer(buffer, buffSize);
-            swapBytes(buffer, buffSize);
-            byteCount -= buffSize;
-        } else {
-            fill_buffer(buffer, byteCount);
-            swapBytes(buffer, byteCount + EVENTLEAD);
-        }
-    }
-
-    init_transfer();
-
-    setup_next_txptr(startbuff, sizeof(startbuff));
-    NRF_I2S->TASKS_START = 1;
-
-    if (byteCount > buffSize) {
-        wait_for_txptrupd();
-
-        set_action_on_next_event(PPI_CMD_PIN_HIGH);
-        setup_next_txptr(buffer, buffSize);
-
-        while (byteCount > buffSize) {
-            if (buffer == buffer1) buffer = buffer2;
-            else if (buffer == buffer2) buffer = buffer3;
-            else buffer = buffer1;
-
-            copyCount = buffSize < byteCount ? buffSize : byteCount;
-            fill_buffer(buffer, copyCount);
-            swapBytes(buffer, copyCount);
-            byteCount -= copyCount;
-
-            wait_for_txptrupd();
-            setup_next_txptr(buffer, buffSize);
-        }
-    }
-
-    wait_for_txptrupd();
+    int retval = fill_buffer(buffer + 2, buffSize - 2);
+    //swapBytes(buffer, buffSize);
 
     set_action_on_next_event(PPI_CMD_PIN_HIGH);
-    setup_next_txptr(buffer, byteCount + EVENTLEAD);
+    init_transfer();
+
+
+    setup_next_txptr(buffer, buffSize);
+
+    NRF_I2S->TASKS_START = 1;
+
+    while (retval != -1) {
+        if (buffer == buffer1) buffer = buffer2;
+        else if (buffer == buffer2) buffer = buffer3;
+        else  if (buffer == buffer3) buffer = buffer1;
+        
+
+        retval = fill_buffer(buffer, buffSize);
+        //swapBytes(buffer, buffSize);
+        
+        wait_for_txptrupd();
+
+        NRF_PPI->CHENCLR = 1 << 4;
+        setup_next_txptr(buffer, buffSize);
+    }
 
     wait_for_txptrupd();
 
     set_action_on_next_event(PPI_END_TRANSFER);
     while (!NRF_I2S->EVENTS_STOPPED);
 
-
-    NRF_PPI->CHENCLR = 1 << PPI_GPIOTE_SET;
-    NRF_PPI->CHENCLR = 1 << PPI_I2S_TASKS_STOP;
 
     I2S_enable(0);
 
