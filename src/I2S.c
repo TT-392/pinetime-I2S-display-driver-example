@@ -25,7 +25,6 @@ void I2S_init() {
         LCD_COMMAND << GPIOTE_CONFIG_PSEL_Pos |
         GPIOTE_CONFIG_OUTINIT_Low << GPIOTE_CONFIG_OUTINIT_Pos;
 
-    NRF_GPIOTE->TASKS_CLR[1] = 1;
 
     NRF_TIMER3->MODE = 0 << TIMER_MODE_MODE_Pos; // timer mode
     NRF_TIMER3->BITMODE = 3 << TIMER_BITMODE_BITMODE_Pos; // 16 bit
@@ -34,42 +33,55 @@ void I2S_init() {
     // Block schematic for timer/counter on page 234.
     NRF_TIMER3->PRESCALER = 0 << TIMER_PRESCALER_PRESCALER_Pos; // 16 MHz
 
-    uint32_t offset = 4 + 8*8;
-    NRF_TIMER3->CC[0] = offset + 8*2;
-    //NRF_TIMER3->CC[1] = offset + 8*1;
-    //NRF_TIMER3->CC[2] = offset + 8*2;
-    //NRF_TIMER3->CC[3] = offset + 8*3;
-
-    NRF_PPI->CH[5].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[0];
-    NRF_PPI->CH[5].TEP = (uint32_t) &NRF_GPIOTE->TASKS_SET[1];
-    //NRF_PPI->CH[6].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[1];
-    //NRF_PPI->CH[6].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
-    //NRF_PPI->CH[7].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[2];
-    //NRF_PPI->CH[7].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
-    //NRF_PPI->CH[8].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[3];
-    //NRF_PPI->CH[8].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
-    NRF_PPI->CHENSET = 1 << 5;
-    NRF_PPI->CHENSET = 1 << 6;
-    NRF_PPI->CHENSET = 1 << 7;
-    NRF_PPI->CHENSET = 1 << 8;
-
-    NRF_PPI->CH[1].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[1].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
-
-    ///NRF_PPI->CH[2].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[0];
-    ///NRF_PPI->CH[2].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
-    //NRF_PPI->CH[3].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    //NRF_PPI->CH[3].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
-    //NRF_PPI->CH[3].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    //NRF_PPI->CH[3].TEP = (uint32_t) &NRF_TIMER3->TASKS_START;
-    NRF_PPI->CH[4].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
-    NRF_PPI->CH[4].TEP = (uint32_t) &NRF_TIMER3->TASKS_CLEAR;
-    //NRF_PPI->CHENSET = 1 << 3;
-    NRF_PPI->CHENSET = 1 << 4;
 }
 
-#define PPI_I2S_TASKS_STOP 1
-#define PPI_GPIOTE_SET 2
+#define PPI_OFFSET 3
+
+static int PPI_TIMER_CLEAR;
+static int PPI_TIMER_START;
+
+// Set up TIMER3 with CC's and PPI's to toggle the CMD pin and to trigger the stop task
+static inline void PPI_setup(bool initial_state, uint32_t toggles[5], uint32_t stop) {
+    int PPI_CHANNEL = PPI_OFFSET;
+    NRF_PPI->CH[PPI_CHANNEL].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[PPI_CHANNEL].TEP = (uint32_t) &NRF_TIMER3->TASKS_CLEAR;
+    NRF_PPI->CHENSET = 1 << PPI_CHANNEL;
+    PPI_TIMER_CLEAR = PPI_CHANNEL;
+    PPI_CHANNEL++;
+
+    NRF_PPI->CH[PPI_CHANNEL].EEP = (uint32_t) &NRF_I2S->EVENTS_TXPTRUPD;
+    NRF_PPI->CH[PPI_CHANNEL].TEP = (uint32_t) &NRF_TIMER3->TASKS_START;
+    PPI_TIMER_START = PPI_CHANNEL;
+    NRF_PPI->CHENSET = 1 << PPI_CHANNEL;
+    PPI_CHANNEL++;
+
+    if(initial_state)
+        NRF_GPIOTE->TASKS_SET[1] = 1;
+    else
+        NRF_GPIOTE->TASKS_CLR[1] = 1;
+
+    uint32_t offset = 4 + 8*8;
+
+    for (int i = 0; i < 5; i++) {
+        if (toggles[i] != 0) {
+            NRF_TIMER3->CC[i] = offset + 8*toggles[i];
+
+            NRF_PPI->CH[PPI_CHANNEL].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[i];
+            NRF_PPI->CH[PPI_CHANNEL].TEP = (uint32_t) &NRF_GPIOTE->TASKS_OUT[1];
+
+            NRF_PPI->CHENSET = 1 << (PPI_CHANNEL);
+        } else {
+            NRF_PPI->CHENCLR = 1 << (PPI_CHANNEL);
+        }
+        PPI_CHANNEL++;
+    }
+
+    NRF_TIMER3->CC[5] = offset + 8*stop;
+    NRF_PPI->CH[PPI_CHANNEL].EEP = (uint32_t) &NRF_TIMER3->EVENTS_COMPARE[5];
+    NRF_PPI->CH[PPI_CHANNEL].TEP = (uint32_t) &NRF_I2S->TASKS_STOP;
+    NRF_PPI->CHENSET = 1 << PPI_CHANNEL;
+}
+
 
 void I2S_enable(bool enabled) {
     if (enabled) {
@@ -122,6 +134,12 @@ static inline void init_bufferfiller(void *data, enum transfertype type) {
             color_fg = mono_struct->color_fg;
             color_bg = mono_struct->color_bg;
             break;
+        case SOLID_COLOR:
+            I2S_SOLID_COLOR_t *color_struct = (I2S_SOLID_COLOR_t*)data;
+            active_pixCount = color_struct->pixCount;
+            color_fg = color_struct->color;
+            break;
+
     }
 
     active_index = 0;
@@ -156,122 +174,22 @@ static inline int fill_buffer(volatile uint8_t *buffer, size_t size) {
                     return -1;
             }
             return 0;
+        case SOLID_COLOR:
+            for (int i = 0; i < size; i += 2) {
+                buffer[i] = ((uint8_t*)&color_fg)[0];
+                buffer[i + 1] = ((uint8_t*)&color_fg)[1];
+
+                active_index += 2;
+                if (active_index >= active_pixCount){
+                    return -1;
+                }
+            }
     }
-}
-
-void I2S_RAMWR_COLOR(uint16_t color, int pixCount) {
-    // This I2S driver works by abusing the TXPTRUPD event as a PPI event to
-    // either stop the transfer or toggle the CMD pin. This event happens
-    // roughly 8.5 bytes before the end of a dma transfer, though, because half
-    // a byte is seen as no byte, and the CMD pin is sampled at the end of a
-    // byte, in practice, the action taken on EVENTS_TXPTRUPD has effect 9
-    // bytes (EVENTLEAD) before the end of the dma transfer. As an example of how
-    // this is done, take the following I2S transfer of 7 pixels:
-    //
-    // start[12] = {0x00, 0x00, RAMWR, pix1.1, pix1.2, pix2.1, pix2.2, pix3.1, pix3.2, pix4.1, pix4.2, pix5.1}
-    //                                   ^ *1
-    // buffer[16] = {pix5.2, pix6.1, pix6.2, pix7.1, pix7.2, pix1.1, pix1.2, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy, dummy}
-    //                                                         ^ *3            ^ *2
-    //
-    // *1: The first TXPTRUPD event, the CMD pin will be set high here
-    // *2: The second TXPTRUPD event, the I2S transfer will be stopped here
-    // *3: The I2S dma transfer has to be a multiple of 4 bytes, therefore an
-    // uneven number ends with the first pixel repeated
-    //
-    // More notes:
-    //
-    // Because the I2S doesn't do 16MHz 8 bit transfers, it has to have a word
-    // size of 16 bytes at minimum, and, because of messed up endianness, the
-    // buffers in the example will need to have their endianness swapped by
-    // swapBytes() before the dma transfer.
-    //
-    // In reality, the transfer has 8 bytes and 1 bit of zeroes in front of it,
-    // therefore 7 bits are bitbanged at the start of the I2S transfer.
-    // Something similar goes for the end of the transfer, but this can be
-    // fixed by toggling the CS pin.
-
-    assert(pixCount != 0);
-
-    volatile uint8_t buffer[4] = {color & 0xff,
-        color >> 8, color & 0xff,
-        color >> 8};
-
-    volatile uint8_t start[12] = {0x00, 0x00, CMD_RAMWR,
-        color >> 8, color & 0xff,
-        color >> 8, color & 0xff,
-        color >> 8, color & 0xff,
-        color >> 8, color & 0xff,
-        color >> 8};
-
-    swapBytes(start, 12);
-    swapBytes(buffer, 4);
-
-    I2S_enable(1);
-
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-    NRF_I2S->EVENTS_STOPPED = 0;
-
-    NRF_GPIOTE->TASKS_CLR[1] = 1; // The command pin is connected to this GPIOTE channel
-
-    NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected;
-
-    // bitbang 7 0's to fix bit offset
-    for (int i = 0; i < 7; i++) {
-        nrf_gpio_pin_write(LCD_SCK,1);
-        nrf_gpio_pin_write(LCD_SCK,0);
-    }
-
-    NRF_I2S->PSEL.SCK = LCD_SCK << I2S_PSEL_SCK_PIN_Pos;
-
-
-    NRF_I2S->RXTXD.MAXCNT = sizeof(start)/4;
-    NRF_I2S->TXD.PTR = (uint32_t)start;
-    NRF_I2S->TASKS_START = 1;
-
-    while (!NRF_I2S->EVENTS_TXPTRUPD);
-    NRF_I2S->EVENTS_TXPTRUPD = 0;
-
-    NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
-
-    NRF_I2S->TXD.PTR = (uint32_t)buffer;
-    NRF_I2S->RXTXD.MAXCNT = 1;
-
-
-    // The amount of 4 byte chunks after the cmd pin was taken high until the transfer ends
-    for (int i = 0; i < ((pixCount + 1) / 2); i++) {
-        while (!NRF_I2S->EVENTS_TXPTRUPD);
-        NRF_I2S->EVENTS_TXPTRUPD = 0;
-    }
-    
-
-    NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
-    while (!NRF_I2S->EVENTS_STOPPED);
-
-    NRF_PPI->CHENCLR = 1 << PPI_GPIOTE_SET;
-    NRF_PPI->CHENCLR = 1 << PPI_I2S_TASKS_STOP;
-
-    I2S_enable(0);
-
-    // Transfer ends on a random bit, therefore CS has to be toggled to reset the bit counter
-    nrf_gpio_pin_write(LCD_SELECT,1);
-    nrf_gpio_pin_write(LCD_SELECT,0);
 }
 
 static inline void wait_for_txptrupd() {
     while (!NRF_I2S->EVENTS_TXPTRUPD);
     NRF_I2S->EVENTS_TXPTRUPD = 0;
-}
-
-enum ppi_action {PPI_CMD_PIN_HIGH, PPI_END_TRANSFER};
-static inline void set_action_on_next_event(enum ppi_action action) {
-    switch (action) {
-        case PPI_CMD_PIN_HIGH:
-            NRF_PPI->CHENSET = 1 << PPI_GPIOTE_SET;
-            break;
-        case PPI_END_TRANSFER:
-            NRF_PPI->CHENSET = 1 << PPI_I2S_TASKS_STOP;
-            break;
-    }
 }
 
 static inline void setup_next_txptr(volatile uint8_t* buffer, size_t size) {
@@ -287,8 +205,6 @@ static inline void init_transfer() {
     NRF_I2S->EVENTS_TXPTRUPD = 0;
     NRF_I2S->EVENTS_STOPPED = 0;
 
-    NRF_GPIOTE->TASKS_CLR[1] = 1; // The command pin is connected to this GPIOTE channel
-
     NRF_I2S->PSEL.SCK = I2S_PSEL_SCK_CONNECT_Disconnected;
 
     // bitbang 7 0's to fix bit offset
@@ -300,75 +216,73 @@ static inline void init_transfer() {
     NRF_I2S->PSEL.SCK = LCD_SCK << I2S_PSEL_SCK_PIN_Pos;
 }
 
-void I2S_RAMWR(void* data, enum transfertype type)  {
-    // 24.3 Task delays
-    // After the TIMER is started, the CLEAR task, COUNT task and the STOP task
-    // will guarantee to take effect within one clock cycle of the PCLK16M.
-    //
-    // For this reason we start the timer bbefore we start I2S, instead of in
-    // the PPI
-    NRF_TIMER3->TASKS_START = 1;
-    NRF_PPI->CHENSET = 1 << 4;
-    NRF_PPI->CHENCLR = 1 << 1;
+void I2S_writeBlock(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *data, enum transfertype type) {
+    int pixCount = (x2-x1+1) * (y2-y1+1);
 
-    size_t pixCount;
-
-    switch (type) {
-        case BITMAP:
-            I2S_BITMAP_t *bmp_struct = (I2S_BITMAP_t*)data;
-            pixCount = bmp_struct->pixCount;
-            break;
-        case MONO:
-            I2S_MONO_t *mono_struct = (I2S_MONO_t*)data;
-            pixCount = mono_struct->pixCount;
-            break;
+    if (type == MONO) {
+        ((I2S_MONO_t*) data)->pixCount = pixCount;
+    } else if (type == BITMAP) {
+        ((I2S_BITMAP_t*) data)->pixCount = pixCount;
+    } else if (type == SOLID_COLOR) {
+        ((I2S_SOLID_COLOR_t*) data)->pixCount = pixCount;
     }
 
-    assert(pixCount != 0);
-
-#define buffSize 256 // must be a multiple of 4
 
     // The buffers contain extra space for trailing dummy bytes
-    volatile uint8_t buffer1[buffSize] = {CMD_RAMWR, 0};
+    volatile uint8_t buffer1[buffSize] = {
+        0,
+        CMD_CASET,
+        x1 >> 8,        // 2 (¬cmd high)
+        x1 & 0xff,
+        x2 >> 8,
+        x2 & 0xff,
+        CMD_RASET,      // 6 (¬cmd low)
+        y1 >> 8,        // 7 (¬cmd high)
+        y1 & 0xff,
+        y2 >> 8,
+        y2 & 0xff,
+        CMD_RAMWR       // 11 (¬cmd low)
+    };                  // 12 (¬cmd low)
+
+    // must be a multiple of 4 and >= 16, a smaller value means less ram will be used (there are 3 buffers of size buffSize), and less time will be needed when before the transfer (the first buffer is filled before starting the transfer). Too small a value might cause stability problems depending on compiler settings.
+#define buffSize 16
+
     volatile uint8_t buffer2[buffSize];
     volatile uint8_t buffer3[buffSize];
     volatile uint8_t *buffer = buffer1;
 
     init_bufferfiller(data, type);
 
-    int retval = fill_buffer(buffer + 2, buffSize - 2);
-    //swapBytes(buffer, buffSize);
+    PPI_setup(0, (uint32_t[5]) {2, 6, 7, 11, 12}, 2*pixCount + 12);
+    swapBytes(buffer1, buffSize);
 
-    set_action_on_next_event(PPI_CMD_PIN_HIGH);
+    int retval = fill_buffer(buffer + 12, buffSize - 12);
+
     init_transfer();
 
-
     setup_next_txptr(buffer, buffSize);
-
     NRF_I2S->TASKS_START = 1;
 
     while (retval != -1) {
         if (buffer == buffer1) buffer = buffer2;
         else if (buffer == buffer2) buffer = buffer3;
-        else  if (buffer == buffer3) buffer = buffer1;
-        
+        else if (buffer == buffer3) buffer = buffer1;
 
         retval = fill_buffer(buffer, buffSize);
-        //swapBytes(buffer, buffSize);
-        
-        wait_for_txptrupd();
 
-        NRF_PPI->CHENCLR = 1 << 4;
+        wait_for_txptrupd();
+        NRF_PPI->CHENCLR = 1 << PPI_TIMER_CLEAR;
+        NRF_PPI->CHENCLR = 1 << PPI_TIMER_START;
+
         setup_next_txptr(buffer, buffSize);
     }
 
-    wait_for_txptrupd();
-
-    set_action_on_next_event(PPI_END_TRANSFER);
     while (!NRF_I2S->EVENTS_STOPPED);
 
+    NRF_TIMER3->TASKS_STOP = 1;
 
     I2S_enable(0);
+
 
     // Transfer ends on a random bit, therefore CS has to be toggled to reset the bit counter
     nrf_gpio_pin_write(LCD_SELECT,1);

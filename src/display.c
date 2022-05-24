@@ -157,7 +157,6 @@ void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t 
         .pixCount = (x2-x1+1) * (y2-y1+1)
     };
 
-    I2S_RAMWR(&bmp_struct, BITMAP);
 }
 
 void drawMono_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data, uint16_t color_fg, uint16_t color_bg) {
@@ -188,7 +187,6 @@ void drawMono_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *d
         .color_bg = color_bg
     };
 
-    I2S_RAMWR(&mono_struct, MONO);
 }
 
 void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
@@ -212,5 +210,4 @@ void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t
 
     SPIM_enable(0);
 
-    I2S_RAMWR_COLOR(color, (x2-x1+1) * (y2-y1+1));
 }
