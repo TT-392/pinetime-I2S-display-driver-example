@@ -227,6 +227,12 @@ void I2S_writeBlock(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *da
         ((I2S_SOLID_COLOR_t*) data)->pixCount = pixCount;
     }
 
+    // buffSize must be a multiple of 4 and >= 16, a smaller value means less
+    // ram will be used (there are 3 buffers of size buffSize), and less time
+    // will be needed when before the transfer (the first buffer is filled
+    // before starting the transfer). Too small a value might cause stability
+    // problems depending on compiler settings.
+#define buffSize 16
 
     // The buffers contain extra space for trailing dummy bytes
     volatile uint8_t buffer1[buffSize] = {
@@ -243,9 +249,6 @@ void I2S_writeBlock(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *da
         y2 & 0xff,
         CMD_RAMWR       // 11 (¬cmd low)
     };                  // 12 (¬cmd low)
-
-    // must be a multiple of 4 and >= 16, a smaller value means less ram will be used (there are 3 buffers of size buffSize), and less time will be needed when before the transfer (the first buffer is filled before starting the transfer). Too small a value might cause stability problems depending on compiler settings.
-#define buffSize 16
 
     volatile uint8_t buffer2[buffSize];
     volatile uint8_t buffer3[buffSize];

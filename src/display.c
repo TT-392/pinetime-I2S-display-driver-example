@@ -53,6 +53,15 @@ void SPIM_send(bool mode, uint8_t byte) {
     while (NRF_SPIM0->EVENTS_STOPPED == 0) __NOP();
 }
 
+void display_set_backlight(uint8_t brightness) {
+    nrf_gpio_cfg_output(LCD_BACKLIGHT_HIGH);
+    if (brightness != 0) {
+        nrf_gpio_pin_write(LCD_BACKLIGHT_HIGH,0);
+    } else {
+        nrf_gpio_pin_write(LCD_BACKLIGHT_HIGH,1);
+    }
+}
+
 void display_init() {
     I2S_init();
     SPIM_init();
@@ -66,8 +75,7 @@ void display_init() {
     nrf_gpio_pin_write(LCD_SELECT,1);
     nrf_gpio_pin_write(LCD_COMMAND,1);
     nrf_gpio_pin_write(LCD_RESET,1);
-    nrf_gpio_cfg_output(LCD_BACKLIGHT_HIGH);
-    nrf_gpio_pin_write(LCD_BACKLIGHT_HIGH,0);
+    display_set_backlight(1);
     nrf_delay_ms(1);
 
     ///////////////////
@@ -81,133 +89,74 @@ void display_init() {
 
     SPIM_enable(1);
 
-    SPIM_send (0, CMD_SWRESET);
-    SPIM_send (0, CMD_SLPOUT);
+    SPIM_send(0, CMD_SWRESET);
+    SPIM_send(0, CMD_SLPOUT);
 
-    SPIM_send (0, CMD_COLMOD);
-    SPIM_send (1, COLOR_16bit);
+    SPIM_send(0, CMD_COLMOD);
+    SPIM_send(1, COLOR_16bit);
 
-    SPIM_send (0, CMD_MADCTL);
-    SPIM_send (1, 0x00);
+    SPIM_send(0, CMD_MADCTL);
+    SPIM_send(1, 0x00);
 
-    SPIM_send (0, CMD_INVON); // for standard 16 bit colors
-    SPIM_send (0, CMD_NORON);
-    SPIM_send (0, CMD_DISPON);
+    SPIM_send(0, CMD_INVON); // for standard 16 bit colors
+    SPIM_send(0, CMD_NORON);
+    SPIM_send(0, CMD_DISPON);
 
     SPIM_enable(0);
 }
 
-// quick and dirty known working drawSquare
-void drawSquare(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
+void display_scroll(uint16_t TFA, uint16_t VSA, uint16_t BFA, uint16_t scroll_value) {
     SPIM_enable(1);
 
-    SPIM_send(0, CMD_CASET);
+    SPIM_send(0, CMD_VSCRDEF);
 
-    SPIM_send(1, x1 >> 8);
-    SPIM_send(1, x1 & 0xff);
+    SPIM_send(1, TFA >> 8);
+    SPIM_send(1, TFA & 0xff);
 
-    SPIM_send(1, x2 >> 8);
-    SPIM_send(1, x2 & 0xff);
+    SPIM_send(1, VSA >> 8);
+    SPIM_send(1, VSA & 0xff);
 
-    SPIM_send(0, CMD_RASET);
+    SPIM_send(1, BFA >> 8);
+    SPIM_send(1, BFA & 0xff);
 
-    SPIM_send(1, y1 >> 8);
-    SPIM_send(1, y1 & 0xff);
+    SPIM_send(0, CMD_MADCTL);
+    SPIM_send(1, 0x0);
 
-    SPIM_send(1, y2 >> 8);
-    SPIM_send(1, y2 & 0xff);
+    SPIM_send(0, CMD_VSCSAD);
 
-    SPIM_send(0, CMD_RAMWR);
+    SPIM_send(1, scroll_value >> 8);
+    SPIM_send(1, scroll_value & 0xff);
 
-    int area = (x2-x1+1)*(y2-y1+1);
-    int pixel = 0;
-
-    while (pixel != area) {
-        SPIM_send(1, color >> 8);
-        SPIM_send(1, color & 0xff);
-
-        pixel++;
-    }
     SPIM_enable(0);
 }
 
-void drawBitmap_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data) {
+void invert(bool inverted) {
     SPIM_enable(1);
 
-    SPIM_send(0, CMD_CASET);
-
-    SPIM_send(1, x1 >> 8);
-    SPIM_send(1, x1 & 0xff);
-
-    SPIM_send(1, x2 >> 8);
-    SPIM_send(1, x2 & 0xff);
-
-    SPIM_send(0, CMD_RASET);
-
-    SPIM_send(1, y1 >> 8);
-    SPIM_send(1, y1 & 0xff);
-
-    SPIM_send(1, y2 >> 8);
-    SPIM_send(1, y2 & 0xff);
+    if (inverted)
+        SPIM_send(0, CMD_INVON);
+    else
+        SPIM_send(0, CMD_INVOFF);
 
     SPIM_enable(0);
-
-    I2S_BITMAP_t bmp_struct = {
-        .bitmap = data, 
-        .pixCount = (x2-x1+1) * (y2-y1+1)
-    };
-
 }
 
-void drawMono_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data, uint16_t color_fg, uint16_t color_bg) {
-    SPIM_enable(1);
+void display_draw_rect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
+   I2S_SOLID_COLOR_t Color = {.color = color};
 
-    SPIM_send(0, CMD_CASET);
-
-    SPIM_send(1, x1 >> 8);
-    SPIM_send(1, x1 & 0xff);
-
-    SPIM_send(1, x2 >> 8);
-    SPIM_send(1, x2 & 0xff);
-
-    SPIM_send(0, CMD_RASET);
-
-    SPIM_send(1, y1 >> 8);
-    SPIM_send(1, y1 & 0xff);
-
-    SPIM_send(1, y2 >> 8);
-    SPIM_send(1, y2 & 0xff);
-
-    SPIM_enable(0);
-
-    I2S_MONO_t mono_struct = {
-        .bitmap = data, 
-        .pixCount = (x2-x1+1) * (y2-y1+1),
-        .color_fg = color_fg,
-        .color_bg = color_bg
-    };
-
+   I2S_writeBlock(x1, y1, x2, y2, &Color, SOLID_COLOR);
 }
 
-void drawSquare_I2S(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
-    SPIM_enable(1);
+void display_draw_bitmap(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data) {
+    I2S_BITMAP_t bmp = {.bitmap = data};
 
-    SPIM_send(0, CMD_CASET);
+   I2S_writeBlock(x1, y1, x2, y2, &bmp, BITMAP);
+}
 
-    SPIM_send(1, x1 >> 8);
-    SPIM_send(1, x1 & 0xff);
+void display_draw_mono(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t *data, uint16_t color_fg, uint16_t color_bg) {
+    I2S_MONO_t mono = {.bitmap = data,
+    .color_fg = color_fg,
+    .color_bg = color_bg};
 
-    SPIM_send(1, x2 >> 8);
-    SPIM_send(1, x2 & 0xff);
-
-    SPIM_send(0, CMD_RASET);
-
-    SPIM_send(1, y1 >> 8);
-    SPIM_send(1, y1 & 0xff);
-
-    SPIM_send(1, y2 >> 8);
-    SPIM_send(1, y2 & 0xff);
-
-    SPIM_enable(0);
-
+   I2S_writeBlock(x1, y1, x2, y2, &mono, MONO);
 }

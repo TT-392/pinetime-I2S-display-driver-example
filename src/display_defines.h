@@ -19,6 +19,8 @@
 #define CMD_RAMWR     0x2C
 #define CMD_MADCTL    0x36
 #define CMD_NORON     0x13
+#define CMD_VSCRDEF   0x33
+#define CMD_VSCSAD    0x37
 
 
 #define LCD_BACKLIGHT_LOW  14

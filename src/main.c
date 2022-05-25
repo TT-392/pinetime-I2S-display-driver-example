@@ -27,43 +27,21 @@ int main() {
     }
     display_init();
 
-
-    I2S_BITMAP_t bmp = {.bitmap = data};
-    I2S_MONO_t mono = {.bitmap = frame,
-    .color_fg = 0xffff,
-    .color_bg = 0x0000};
-
-    I2S_SOLID_COLOR_t color = {.color = 0xf800};
-
+    bool toggle = 0;
+    int scroll = 0;
     while(1) {
-        I2S_writeBlock(0, 0, 239, 239, &color, SOLID_COLOR);
-        I2S_writeBlock(0, 0, 239, 239, &mono, MONO);
-        I2S_writeBlock(120, 0, 120 + width - 1, height - 1, &bmp, BITMAP);
-        I2S_writeBlock(0, 0, width - 1, height - 1, &bmp, BITMAP);
-        I2S_writeBlock(0, 120, width - 1, 120+height - 1, &bmp, BITMAP);
-        I2S_writeBlock(120, 120, 120+width - 1, 120+height - 1, &bmp, BITMAP);
-        //I2S_writeBlock(0, 0, 2, 10, &bmp, BITMAP);
+        nrf_delay_ms(1);
+        display_draw_rect(0, 0, 239, 239, 0xf800);
+        nrf_delay_ms(1);
+        display_draw_mono(0, 0, 239, 239, frame, 0x07e0, 0x001f);
+        nrf_delay_ms(1);
+        display_draw_bitmap(120, 0, 120 + width - 1, height - 1, data);
+        display_draw_bitmap(0, 0, width - 1, height - 1, data);
+        display_draw_bitmap(0, 120, width - 1, 120+height - 1, data);
+        display_draw_bitmap(120, 120, 120+width - 1, 120+height - 1, data);
+        invert(toggle);
+        toggle = !toggle;
+        scroll += 10;
+        display_scroll(10, 220, 90, scroll % 220);
     }
-    while(1);
-
-
-    drawSquare_I2S(0, 0, 239, 239, 0x001f);
-    drawSquare_I2S(0, 0, 239, 239, 0xf800);
-
-
-    drawMono_I2S(0, 0, 239, 239, frame, 0x001f, 0xf800);
-    //while(1);
-        drawBitmap_I2S(120, 0, 120 + width - 1, height - 1, data);
-    //    drawBitmap_I2S(0, 0, width - 1, height - 1, data);
-        //drawBitmap_I2S(120, 0, 120 + width - 1, height - 1, data);
-        while(1);
-    while(1) {
-        nrf_delay_ms(1000);
-        drawBitmap_I2S(0, 0, width - 1, height - 1, data);
-        //drawBitmap_I2S(120, 120, 120 + width - 1, 120 + height - 1, data);
-        //drawBitmap_I2S(120, 0, 120 + width - 1, height - 1, data);
-        //drawBitmap_I2S(0, 120, width - 1, 120 + height - 1, data);
-        //drawSquare_I2S(0, 0, 120, 120, 0xf800);
-    }
-
 }
