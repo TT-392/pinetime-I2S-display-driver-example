@@ -74,6 +74,8 @@ void display_set_backlight(uint8_t brightness) {
 
 static void backlight_init() {
 	NRF_PWM0->PSEL.OUT[0] = LCD_BACKLIGHT_HIGH;
+	NRF_PWM0->PSEL.OUT[1] = LCD_BACKLIGHT_MID;
+	NRF_PWM0->PSEL.OUT[2] = LCD_BACKLIGHT_LOW;
 	NRF_PWM0->MODE = 0;
 	NRF_PWM0->PRESCALER = 0;
 	NRF_PWM0->COUNTERTOP = 32767;
