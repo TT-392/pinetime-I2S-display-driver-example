@@ -1,6 +1,7 @@
 #include <nrf.h>
 #include <nrf_gpio.h>
 #include <nrf_delay.h>
+#include <math.h>
 #include <assert.h>
 #include "I2S.h"
 #include "display_defines.h"
@@ -53,18 +54,47 @@ void SPIM_send(bool mode, uint8_t byte) {
     while (NRF_SPIM0->EVENTS_STOPPED == 0) __NOP();
 }
 
+uint16_t brightness_curve(uint8_t brightness) {
+    const int maxPower = 32767;
+    const double maxExp = log2(maxPower);
+    return(pow(2, ((double)brightness / 255) * maxExp) - (1 - ((double)brightness/255)));
+}
+
+static volatile uint16_t backlight_duty = 0;
+
 void display_set_backlight(uint8_t brightness) {
-    nrf_gpio_cfg_output(LCD_BACKLIGHT_HIGH);
-    if (brightness != 0) {
-        nrf_gpio_pin_write(LCD_BACKLIGHT_HIGH,0);
-    } else {
-        nrf_gpio_pin_write(LCD_BACKLIGHT_HIGH,1);
-    }
+    while (!NRF_PWM0->EVENTS_SEQSTARTED[0]);
+
+    backlight_duty = brightness_curve(brightness);
+    NRF_PWM0->SEQ[0].PTR = (uintptr_t)&backlight_duty;
+
+    NRF_PWM0->EVENTS_SEQSTARTED[0] = 0;
+    NRF_PWM0->TASKS_SEQSTART[0] = 1;
+}
+
+static void backlight_init() {
+	NRF_PWM0->PSEL.OUT[0] = LCD_BACKLIGHT_HIGH;
+	NRF_PWM0->MODE = 0;
+	NRF_PWM0->PRESCALER = 0;
+	NRF_PWM0->COUNTERTOP = 32767;
+	NRF_PWM0->LOOP = 0;
+	NRF_PWM0->DECODER = 0x100;
+	NRF_PWM0->SEQ[0].REFRESH = 0;
+   
+    NRF_PWM0->SEQ[0].CNT = 1;
+    NRF_PWM0->SEQ[0].PTR = (uintptr_t)&backlight_duty;
+
+    NRF_PWM0->ENABLE = 1;
+
+    NRF_PWM0->EVENTS_SEQSTARTED[0] = 0;
+    NRF_PWM0->TASKS_SEQSTART[0] = 1;
 }
 
 void display_init() {
     I2S_init();
     SPIM_init();
+    backlight_init();
+    display_set_backlight(0xff);
 
     nrf_gpio_cfg_output(LCD_MOSI);
     nrf_gpio_cfg_output(LCD_SCK);
@@ -75,7 +105,6 @@ void display_init() {
     nrf_gpio_pin_write(LCD_SELECT,1);
     nrf_gpio_pin_write(LCD_COMMAND,1);
     nrf_gpio_pin_write(LCD_RESET,1);
-    display_set_backlight(1);
     nrf_delay_ms(1);
 
     ///////////////////

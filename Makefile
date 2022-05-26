@@ -258,9 +258,10 @@ $(foreach target, $(TARGETS), $(call define_target, $(target)))
 flash: default
 	@echo Flashing: $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex
 	nrfjprog -f nrf52 --program $(OUTPUT_DIRECTORY)/nrf52832_xxaa.hex --sectorerase
-	scope_ctrl reset
-	scope_ctrl single
-	scope_ctrl pulseview
+	nrfjprog -f nrf52 --reset
+	#scope_ctrl reset
+	#scope_ctrl single
+	#scope_ctrl pulseview
 
 # Flash softdevice
 flash_softdevice:

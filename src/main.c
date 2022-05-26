@@ -29,6 +29,7 @@ int main() {
 
     bool toggle = 0;
     int scroll = 0;
+    uint8_t brightness = 0;
     while(1) {
         nrf_delay_ms(1);
         display_draw_rect(0, 0, 239, 239, 0xf800);
@@ -43,5 +44,8 @@ int main() {
         toggle = !toggle;
         scroll += 10;
         display_scroll(10, 220, 90, scroll % 220);
+
+        brightness += 10;
+        display_set_backlight(brightness);
     }
 }
