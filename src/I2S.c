@@ -217,6 +217,8 @@ static inline void init_transfer() {
 }
 
 void I2S_writeBlock(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *data, enum transfertype type) {
+    nrf_gpio_pin_write(LCD_SELECT,0);
+
     int pixCount = (x2-x1+1) * (y2-y1+1);
 
     if (type == MONO) {
@@ -286,8 +288,6 @@ void I2S_writeBlock(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *da
 
     I2S_enable(0);
 
-
-    // Transfer ends on a random bit, therefore CS has to be toggled to reset the bit counter
+    // Transfer ends on a random bit, but this is fixed by making CS high
     nrf_gpio_pin_write(LCD_SELECT,1);
-    nrf_gpio_pin_write(LCD_SELECT,0);
 }

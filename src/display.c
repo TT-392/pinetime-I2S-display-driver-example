@@ -134,9 +134,11 @@ void display_init() {
     SPIM_send(0, CMD_DISPON);
 
     SPIM_enable(0);
+    nrf_gpio_pin_write(LCD_SELECT,1);
 }
 
 void display_scroll(uint16_t TFA, uint16_t VSA, uint16_t BFA, uint16_t scroll_value) {
+    nrf_gpio_pin_write(LCD_SELECT,0);
     SPIM_enable(1);
 
     SPIM_send(0, CMD_VSCRDEF);
@@ -159,9 +161,11 @@ void display_scroll(uint16_t TFA, uint16_t VSA, uint16_t BFA, uint16_t scroll_va
     SPIM_send(1, scroll_value & 0xff);
 
     SPIM_enable(0);
+    nrf_gpio_pin_write(LCD_SELECT,1);
 }
 
 void invert(bool inverted) {
+    nrf_gpio_pin_write(LCD_SELECT,0);
     SPIM_enable(1);
 
     if (inverted)
@@ -170,6 +174,7 @@ void invert(bool inverted) {
         SPIM_send(0, CMD_INVOFF);
 
     SPIM_enable(0);
+    nrf_gpio_pin_write(LCD_SELECT,1);
 }
 
 void display_draw_rect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
